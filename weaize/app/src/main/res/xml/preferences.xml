@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="utf-8"?>
+<PreferenceScreen xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <ListPreference
+        android:key="language"
+        android:title="@string/pref_language"
+        android:entries="@array/language_entries"
+        android:entryValues="@array/language_values"
+        android:defaultValue="en" />
+
+    <SwitchPreferenceCompat
+        android:key="voice_warnings"
+        android:title="@string/pref_voice_warnings"
+        android:defaultValue="true" />
+
+    <EditTextPreference
+        android:key="speed_limit_kmh"
+        android:title="@string/pref_speed_limit"
+        android:defaultValue="100" />
+
+    <SwitchPreferenceCompat
+        android:key="auto_download_tiles"
+        android:title="@string/pref_auto_download"
+        android:defaultValue="false" />
+
+    <EditTextPreference
+        android:key="private_key"
+        android:title="@string/pref_private_key" />
+
+    <EditTextPreference
+        android:key="supabase_url"
+        android:title="@string/pref_supabase_url" />
+
+    <EditTextPreference
+        android:key="supabase_apikey"
+        android:title="@string/pref_supabase_apikey" />
+
+    <EditTextPreference
+        android:key="upload_interval_s"
+        android:title="@string/pref_upload_interval"
+        android:defaultValue="30" />
+</PreferenceScreen>

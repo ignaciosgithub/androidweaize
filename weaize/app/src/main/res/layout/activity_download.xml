@@ -1,0 +1,58 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:padding="16dp">
+
+        <EditText
+            android:id="@+id/input_north"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:hint="@string/north"
+            android:inputType="numberDecimal|numberSigned" />
+
+        <EditText
+            android:id="@+id/input_south"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:hint="@string/south"
+            android:inputType="numberDecimal|numberSigned" />
+
+        <EditText
+            android:id="@+id/input_east"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:hint="@string/east"
+            android:inputType="numberDecimal|numberSigned" />
+
+        <EditText
+            android:id="@+id/input_west"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:hint="@string/west"
+            android:inputType="numberDecimal|numberSigned" />
+
+        <Button
+            android:id="@+id/btn_do_download"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="@string/download_region" />
+
+        <TextView
+            android:id="@+id/download_status"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:padding="8dp" />
+
+        <org.osmdroid.views.MapView
+            android:id="@+id/hidden_map"
+            android:layout_width="1dp"
+            android:layout_height="1dp"
+            android:visibility="invisible" />
+    </LinearLayout>
+</ScrollView>

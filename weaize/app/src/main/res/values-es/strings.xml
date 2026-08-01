@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Weaize</string>
+    <string name="start_tracking">Iniciar</string>
+    <string name="stop_tracking">Detener</string>
+    <string name="settings">Ajustes</string>
+    <string name="download_maps">Mapas sin conexión</string>
+    <string name="import_creds">Importar creds.txt</string>
+    <string name="speed_format">%1$d km/h</string>
+    <string name="permission_needed">Se necesita el permiso de ubicación para el seguimiento</string>
+    <string name="creds_imported">Credenciales importadas</string>
+    <string name="creds_invalid">No se pudieron leer las credenciales del archivo</string>
+    <string name="notification_tracking">Rastreando ubicación</string>
+    <string name="tts_speed_warning">Atención. Está conduciendo a %1$d kilómetros por hora. El límite es %2$d.</string>
+    <string name="tts_sharp_turn">Curva pronunciada detectada. Reduzca la velocidad.</string>
+    <string name="tts_gps_lost">Señal GPS perdida.</string>
+    <string name="download_started">Descarga iniciada…</string>
+    <string name="download_complete">Descarga completada</string>
+    <string name="download_failed">Descarga finalizada con %1$d errores</string>
+    <string name="download_progress">Descargando mosaico %1$d (zoom %2$d)</string>
+    <string name="download_region">Descargar región</string>
+    <string name="north">Latitud norte</string>
+    <string name="south">Latitud sur</string>
+    <string name="east">Longitud este</string>
+    <string name="west">Longitud oeste</string>
+
+    <string name="pref_language">Idioma de voz</string>
+    <string name="pref_speed_limit">Límite de velocidad (km/h)</string>
+    <string name="pref_voice_warnings">Avisos de voz</string>
+    <string name="pref_auto_download">Descargar automáticamente mosaicos a mi alrededor</string>
+    <string name="pref_private_key">Clave privada (cifra las subidas)</string>
+    <string name="pref_supabase_url">URL de Supabase</string>
+    <string name="pref_supabase_apikey">Clave API de Supabase (pública/anon)</string>
+    <string name="pref_upload_interval">Intervalo de subida (segundos)</string>
+</resources>

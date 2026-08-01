@@ -1,0 +1,52 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Weaize</string>
+    <string name="start_tracking">Start</string>
+    <string name="stop_tracking">Stop</string>
+    <string name="settings">Settings</string>
+    <string name="download_maps">Offline maps</string>
+    <string name="import_creds">Import creds.txt</string>
+    <string name="speed_format">%1$d km/h</string>
+    <string name="permission_needed">Location permission is required for tracking</string>
+    <string name="creds_imported">Credentials imported</string>
+    <string name="creds_invalid">Could not read credentials from file</string>
+    <string name="notification_tracking">Tracking location</string>
+    <string name="tts_speed_warning">Warning. You are driving %1$d kilometers per hour. The limit is %2$d.</string>
+    <string name="tts_sharp_turn">Sharp turn detected. Slow down.</string>
+    <string name="tts_gps_lost">GPS signal lost.</string>
+    <string name="download_started">Download started…</string>
+    <string name="download_complete">Download complete</string>
+    <string name="download_failed">Download finished with %1$d errors</string>
+    <string name="download_progress">Downloading tile %1$d (zoom %2$d)</string>
+    <string name="download_region">Download region</string>
+    <string name="north">North latitude</string>
+    <string name="south">South latitude</string>
+    <string name="east">East longitude</string>
+    <string name="west">West longitude</string>
+
+    <string name="pref_language">Voice language</string>
+    <string name="pref_speed_limit">Speed limit (km/h)</string>
+    <string name="pref_voice_warnings">Voice warnings</string>
+    <string name="pref_auto_download">Auto-download map tiles around me</string>
+    <string name="pref_private_key">Private key (encrypts uploads)</string>
+    <string name="pref_supabase_url">Supabase URL</string>
+    <string name="pref_supabase_apikey">Supabase API key (public/anon)</string>
+    <string name="pref_upload_interval">Upload interval (seconds)</string>
+
+    <string-array name="language_entries">
+        <item>English</item>
+        <item>Español</item>
+        <item>Português</item>
+        <item>Français</item>
+        <item>Deutsch</item>
+        <item>Italiano</item>
+    </string-array>
+    <string-array name="language_values">
+        <item>en</item>
+        <item>es</item>
+        <item>pt</item>
+        <item>fr</item>
+        <item>de</item>
+        <item>it</item>
+    </string-array>
+</resources>
