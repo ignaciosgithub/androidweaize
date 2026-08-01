@@ -121,7 +121,8 @@ class ViewerApp:
         try:
             rows = fetch_locations(self.base_url, self.api_key, limit, None)
         except Exception as e:
-            self.root.after(0, lambda: self.status.set(f"Fetch failed: {e}"))
+            msg = f"Fetch failed: {e}"
+            self.root.after(0, lambda: self.status.set(msg))
             return
         self.root.after(0, lambda: self._show(rows))
 
