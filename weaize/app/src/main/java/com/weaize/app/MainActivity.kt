@@ -56,16 +56,21 @@ class MainActivity : AppCompatActivity() {
 
   override fun onCreate(savedInstanceState: Bundle?) {
     super.onCreate(savedInstanceState)
-    Configuration.getInstance().userAgentValue = packageName
-    Configuration.getInstance().osmdroidBasePath = getExternalFilesDir(null)
+    val config = Configuration.getInstance()
+    config.load(this, Prefs.get(this))
+    config.userAgentValue = packageName
+    val base = getExternalFilesDir(null) ?: filesDir
+    config.osmdroidBasePath = base
+    config.osmdroidTileCache = java.io.File(base, "tiles")
     setContentView(R.layout.activity_main)
 
     map = findViewById(R.id.map)
     map.setTileSource(TileSourceFactory.MAPNIK)
     map.setMultiTouchControls(true)
-    map.controller.setZoom(15.0)
+    centerOnLastKnownLocation()
 
     speedText = findViewById(R.id.speed_text)
+    speedText.text = getString(R.string.speed_format, 0)
 
     findViewById<Button>(R.id.btn_start).setOnClickListener { toggleTracking() }
     findViewById<Button>(R.id.btn_settings).setOnClickListener {
@@ -80,6 +85,24 @@ class MainActivity : AppCompatActivity() {
     }
     findViewById<Button>(R.id.btn_creds).setOnClickListener {
       credsLauncher.launch(arrayOf("text/plain", "application/octet-stream"))
+    }
+  }
+
+  private fun centerOnLastKnownLocation() {
+    var centered = false
+    if (ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) ==
+        PackageManager.PERMISSION_GRANTED) {
+      val lm = getSystemService(LOCATION_SERVICE) as android.location.LocationManager
+      val last =
+          lm.getProviders(true).mapNotNull { lm.getLastKnownLocation(it) }.maxByOrNull { it.time }
+      if (last != null) {
+        map.controller.setZoom(15.0)
+        map.controller.setCenter(GeoPoint(last.latitude, last.longitude))
+        centered = true
+      }
+    }
+    if (!centered) {
+      map.controller.setZoom(3.0)
     }
   }
 
