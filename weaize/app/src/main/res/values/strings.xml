@@ -24,6 +24,21 @@
     <string name="east">East longitude</string>
     <string name="west">West longitude</string>
 
+    <string name="nav_calculating">Calculating route…</string>
+    <string name="nav_route_failed">Could not fetch a route; using straight-line voice guidance</string>
+    <string name="nav_cleared">Destination cleared</string>
+    <string name="nav_route_started">Route started. Distance %1$d kilometers.</string>
+    <string name="nav_offline_guidance">No route available. Using direction guidance to destination.</string>
+    <string name="nav_offline_update">Destination in %1$d meters. %2$s</string>
+    <string name="nav_in_meters">In %1$d meters, %2$s</string>
+    <string name="nav_turn_left">turn left</string>
+    <string name="nav_turn_right">turn right</string>
+    <string name="nav_continue">continue straight</string>
+    <string name="nav_uturn">make a u-turn</string>
+    <string name="nav_roundabout">enter the roundabout</string>
+    <string name="nav_depart">start driving</string>
+    <string name="nav_arrive">You have arrived at your destination</string>
+
     <string name="pref_language">Voice language</string>
     <string name="pref_speed_limit">Speed limit (km/h)</string>
     <string name="pref_voice_warnings">Voice warnings</string>

@@ -16,7 +16,6 @@
         android:layout_height="wrap_content"
         android:gravity="center"
         android:padding="8dp"
-        android:text="@string/speed_format"
         android:textSize="28sp"
         android:textStyle="bold" />
 

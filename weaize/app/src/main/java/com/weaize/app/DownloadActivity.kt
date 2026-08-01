@@ -17,6 +17,7 @@ class DownloadActivity : AppCompatActivity() {
 
   override fun onCreate(savedInstanceState: Bundle?) {
     super.onCreate(savedInstanceState)
+    org.osmdroid.config.Configuration.getInstance().load(this, Prefs.get(this))
     setContentView(R.layout.activity_download)
 
     status = findViewById(R.id.download_status)

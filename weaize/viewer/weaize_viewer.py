@@ -13,6 +13,8 @@ Usage:
     python weaize_viewer.py --history 50    # last 50 locations
     python weaize_viewer.py --creds /path/to/creds.txt
     python weaize_viewer.py --device <device-uuid>
+    python weaize_viewer.py --live          # interactive: press P to toggle
+                                            # live tracking, Q to quit
 
 Requires: pip install cryptography requests
 """
@@ -23,6 +25,7 @@ import getpass
 import json
 import re
 import sys
+import time
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -105,6 +108,77 @@ def format_row(row: dict, private_key: str) -> str:
     )
 
 
+class KeyPoller:
+    """Non-blocking single-key reader for Windows, macOS and Linux."""
+
+    def __enter__(self):
+        if sys.platform == "win32":
+            self._win = True
+        else:
+            self._win = False
+            import termios
+            import tty
+
+            self._fd = sys.stdin.fileno()
+            self._old = termios.tcgetattr(self._fd)
+            tty.setcbreak(self._fd)
+        return self
+
+    def __exit__(self, *exc):
+        if not self._win:
+            import termios
+
+            termios.tcsetattr(self._fd, termios.TCSADRAIN, self._old)
+
+    def poll(self) -> str | None:
+        if self._win:
+            import msvcrt
+
+            if msvcrt.kbhit():
+                return msvcrt.getwch()
+            return None
+        import select
+
+        ready, _, _ = select.select([sys.stdin], [], [], 0)
+        if ready:
+            return sys.stdin.read(1)
+        return None
+
+
+def show_latest(base_url: str, api_key: str, private_key: str, device: str | None) -> None:
+    rows = fetch_locations(base_url, api_key, 1, device)
+    if rows:
+        print(format_row(rows[0], private_key))
+    else:
+        print("No locations recorded yet.")
+    print()
+
+
+def live_mode(base_url: str, api_key: str, private_key: str, device: str | None,
+              interval: float) -> None:
+    print("Live mode: press P to start/stop tracking, Q to quit.\n")
+    tracking = False
+    last_fetch = 0.0
+    with KeyPoller() as keys:
+        while True:
+            key = keys.poll()
+            if key:
+                k = key.lower()
+                if k == "q":
+                    return
+                if k == "p":
+                    tracking = not tracking
+                    print(f"[tracking {'ON' if tracking else 'OFF'}]")
+                    last_fetch = 0.0
+            if tracking and time.monotonic() - last_fetch >= interval:
+                last_fetch = time.monotonic()
+                try:
+                    show_latest(base_url, api_key, private_key, device)
+                except Exception as e:
+                    print(f"fetch failed: {e}")
+            time.sleep(0.05)
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__,
                                      formatter_class=argparse.RawDescriptionHelpFormatter)
@@ -112,6 +186,10 @@ def main() -> None:
     parser.add_argument("--history", type=int, default=1,
                         help="number of most recent locations to show (default: 1 = last known)")
     parser.add_argument("--device", help="filter by device UUID")
+    parser.add_argument("--live", action="store_true",
+                        help="interactive live tracking: press P to toggle, Q to quit")
+    parser.add_argument("--interval", type=float, default=10.0,
+                        help="refresh interval in seconds for --live (default: 10)")
     args = parser.parse_args()
 
     creds_path = Path(args.creds)
@@ -126,6 +204,10 @@ def main() -> None:
     private_key = creds.get("private key") or getpass.getpass("Private key: ")
     if not private_key:
         sys.exit("a private key is required to decrypt locations")
+
+    if args.live:
+        live_mode(supabase_base_url(creds), api_key, private_key, args.device, args.interval)
+        return
 
     rows = fetch_locations(supabase_base_url(creds), api_key, args.history, args.device)
     if not rows:

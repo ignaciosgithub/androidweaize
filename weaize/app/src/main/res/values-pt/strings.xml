@@ -24,6 +24,21 @@
     <string name="east">Longitude leste</string>
     <string name="west">Longitude oeste</string>
 
+    <string name="nav_calculating">Calculando rota…</string>
+    <string name="nav_route_failed">Não foi possível obter uma rota; usando orientação de voz em linha reta</string>
+    <string name="nav_cleared">Destino removido</string>
+    <string name="nav_route_started">Rota iniciada. Distância %1$d quilômetros.</string>
+    <string name="nav_offline_guidance">Sem rota disponível. Usando orientação de direção até o destino.</string>
+    <string name="nav_offline_update">Destino a %1$d metros. %2$s</string>
+    <string name="nav_in_meters">Em %1$d metros, %2$s</string>
+    <string name="nav_turn_left">vire à esquerda</string>
+    <string name="nav_turn_right">vire à direita</string>
+    <string name="nav_continue">siga em frente</string>
+    <string name="nav_uturn">faça o retorno</string>
+    <string name="nav_roundabout">entre na rotatória</string>
+    <string name="nav_depart">comece a dirigir</string>
+    <string name="nav_arrive">Você chegou ao seu destino</string>
+
     <string name="pref_language">Idioma de voz</string>
     <string name="pref_speed_limit">Limite de velocidade (km/h)</string>
     <string name="pref_voice_warnings">Avisos de voz</string>

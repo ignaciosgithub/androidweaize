@@ -36,7 +36,20 @@ pip install cryptography requests
 python viewer/weaize_viewer.py                    # last known location
 python viewer/weaize_viewer.py --history 100      # recent history
 python viewer/weaize_viewer.py --creds ~/creds.txt --device <uuid>
+python viewer/weaize_viewer.py --live             # press P to toggle live tracking, Q to quit
 ```
+
+Or use the GUI (tkinter, bundled with Python on Windows/macOS; on Debian/Ubuntu
+install it with `sudo apt install python3-tk`):
+
+```bash
+python viewer/weaize_viewer_gui.py                # loads ./creds.txt if present
+python viewer/weaize_viewer_gui.py --creds ~/creds.txt
+```
+
+The GUI shows the location history in a table, has a "Live tracking"
+auto-refresh toggle, and double-clicking a row (or "Open in map") opens the
+position in OpenStreetMap in your browser.
 
 The viewer never deletes anything; it decrypts locally using the private key from
 creds.txt (or an interactive prompt) and prints coordinates, speed, bearing and an
