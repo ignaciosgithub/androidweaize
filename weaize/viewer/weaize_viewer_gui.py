@@ -41,6 +41,7 @@ from weaize_viewer import (
     fetch_locations_any,
     parse_creds,
     probe_services,
+    setup_database,
     supabase_services,
 )
 
@@ -70,6 +71,7 @@ class ViewerApp:
         self.history_count.set(20)
         self.history_count.grid(row=0, column=4)
         ttk.Button(top, text="Open in map", command=self.open_selected).grid(row=0, column=5, padx=12)
+        ttk.Button(top, text="Set up database", command=self.setup_db).grid(row=0, column=6)
 
         columns = ("time", "lat", "lon", "speed", "bearing", "accuracy", "device")
         self.tree = ttk.Treeview(root, columns=columns, show="headings")
@@ -117,6 +119,29 @@ class ViewerApp:
         backup = " + backup" if len(self.services) > 1 else ""
         self.status.set(f"Loaded credentials ({self.services[0][0]}{backup})")
         self.refresh()
+
+    def setup_db(self):
+        """Creates the locations table on the Supabase Postgres using the DB password."""
+        if not self.creds:
+            self.status.set("Load a creds.txt first")
+            return
+        self.status.set("Setting up database...")
+
+        def run():
+            log = setup_database(self.creds)
+            report = "\n".join(log)
+            ok = any(line.startswith("OK") for line in log)
+
+            def done():
+                if ok:
+                    self.status.set("Database set up - fetching...")
+                    self.refresh()
+                else:
+                    self._show_diagnostics(report)
+
+            self.root.after(0, done)
+
+        threading.Thread(target=run, daemon=True).start()
 
     def refresh(self):
         if not self.services:
