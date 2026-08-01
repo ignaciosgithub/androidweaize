@@ -33,7 +33,10 @@ class SupabaseClient(private val context: Context) {
       timestampMs: Long,
   ): Boolean {
     val privateKey = Prefs.privateKey(context)
-    if (privateKey.isBlank()) return false
+    if (privateKey.isBlank()) {
+      Prefs.setLastUploadStatus(context, "no private key set in Settings")
+      return false
+    }
 
     val payload =
         JSONObject()
@@ -58,25 +61,42 @@ class SupabaseClient(private val context: Context) {
                 Prefs.supabaseUrl2(context) to Prefs.supabaseApiKey2(context),
             )
             .filter { (url, key) -> url.isNotBlank() && key.isNotBlank() }
-    for ((baseUrl, apiKey) in services) {
-      if (post(baseUrl, apiKey, row)) return true
+    if (services.isEmpty()) {
+      Prefs.setLastUploadStatus(context, "no Supabase URL/API key configured in Settings")
+      return false
     }
+    val errors = mutableListOf<String>()
+    for ((baseUrl, apiKey) in services) {
+      val error = post(baseUrl, apiKey, row)
+      if (error == null) {
+        Prefs.setLastUploadStatus(context, "OK")
+        return true
+      }
+      errors.add("$baseUrl: $error")
+    }
+    Prefs.setLastUploadStatus(context, errors.joinToString("; "))
     return false
   }
 
-  private fun post(baseUrl: String, apiKey: String, row: String): Boolean {
-    val request =
-        Request.Builder()
-            .url("$baseUrl/rest/v1/locations")
-            .header("apikey", apiKey)
-            .header("Authorization", "Bearer $apiKey")
-            .header("Prefer", "return=minimal")
-            .post(row.toRequestBody(json))
-            .build()
+  /** Returns null on success, otherwise a short error description. */
+  private fun post(baseUrl: String, apiKey: String, row: String): String? {
     return try {
-      http.newCall(request).execute().use { it.isSuccessful }
+      val request =
+          Request.Builder()
+              .url("$baseUrl/rest/v1/locations")
+              .header("apikey", apiKey)
+              .header("Authorization", "Bearer $apiKey")
+              .header("Prefer", "return=minimal")
+              .post(row.toRequestBody(json))
+              .build()
+      http.newCall(request).execute().use { resp ->
+        if (resp.isSuccessful) null
+        else "HTTP ${resp.code} ${resp.body?.string()?.take(120) ?: ""}".trim()
+      }
     } catch (e: IOException) {
-      false
+      e.message ?: e.javaClass.simpleName
+    } catch (e: IllegalArgumentException) {
+      "invalid URL"
     }
   }
 }

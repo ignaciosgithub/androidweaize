@@ -16,6 +16,7 @@ object Prefs {
   const val KEY_SUPABASE_APIKEY_2 = "supabase_apikey_2"
   const val KEY_DEVICE_ID = "device_id"
   const val KEY_UPLOAD_INTERVAL = "upload_interval_s"
+  const val KEY_LAST_UPLOAD_STATUS = "last_upload_status"
 
   fun get(context: Context): SharedPreferences =
       PreferenceManager.getDefaultSharedPreferences(context)
@@ -53,4 +54,11 @@ object Prefs {
 
   fun uploadIntervalS(context: Context): Long =
       (get(context).getString(KEY_UPLOAD_INTERVAL, "30") ?: "30").toLongOrNull() ?: 30L
+
+  fun lastUploadStatus(context: Context): String =
+      get(context).getString(KEY_LAST_UPLOAD_STATUS, "") ?: ""
+
+  fun setLastUploadStatus(context: Context, status: String) {
+    get(context).edit().putString(KEY_LAST_UPLOAD_STATUS, status).apply()
+  }
 }

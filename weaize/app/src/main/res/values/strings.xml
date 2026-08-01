@@ -48,6 +48,8 @@
     <string name="pref_supabase_apikey">Supabase API key (public/anon)</string>
     <string name="pref_supabase_url_2">Backup Supabase URL</string>
     <string name="pref_supabase_apikey_2">Backup Supabase API key (public/anon)</string>
+    <string name="upload_status_ok">Last upload: OK</string>
+    <string name="upload_status_error">Upload failed: %1$s</string>
     <string name="pref_upload_interval">Upload interval (seconds)</string>
 
     <string-array name="language_entries">
