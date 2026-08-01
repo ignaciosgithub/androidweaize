@@ -32,15 +32,17 @@ object CredsFile {
       if (value.isNotEmpty()) map[key] = value
     }
     val projId = map["supabase proj id"]
+    // Prefer the hosted https project URL: local http addresses only work on the
+    // same machine as the Supabase instance, never from the phone.
     val url =
-        map["supabase local address"]
-            ?: map["supabase url"] ?: projId?.let { "https://$it.supabase.co" }
+        projId?.let { "https://$it.supabase.co" }
+            ?: map["supabase local address"] ?: map["supabase url"]
     val projId2 = map["supabase proj id 2"] ?: map["backup supabase proj id"]
     val url2 =
-        map["supabase local address 2"]
+        projId2?.let { "https://$it.supabase.co" }
+            ?: map["supabase local address 2"]
             ?: map["supabase url 2"]
-            ?: map["backup supabase local address"]
-            ?: map["backup supabase url"] ?: projId2?.let { "https://$it.supabase.co" }
+            ?: map["backup supabase local address"] ?: map["backup supabase url"]
     return Creds(
         supabaseUrl = url?.removeSuffix("/"),
         supabaseApiKey = map["supabase apikey pub"] ?: map["supabase apikey"],
