@@ -17,6 +17,7 @@ Usage:
                                             # live tracking, Q to quit
 
 Requires: pip install cryptography requests
+For --setup-db (creates the locations table): pip install psycopg2-binary
 """
 
 import argparse
@@ -30,6 +31,12 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 import requests
+
+try:
+    import psycopg2
+except ImportError:
+    psycopg2 = None
+
 from cryptography.hazmat.primitives import hashes
 from cryptography.hazmat.primitives.ciphers.aead import AESGCM
 from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
@@ -37,6 +44,71 @@ from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
 PBKDF2_ITERATIONS = 100_000
 SALT_LEN = 16
 IV_LEN = 12
+
+SCHEMA_SQL = """
+create table if not exists public.locations (
+    id bigint generated always as identity primary key,
+    device_id uuid not null,
+    recorded_at timestamptz not null,
+    payload text not null,
+    inserted_at timestamptz not null default now()
+);
+
+create index if not exists locations_device_recorded_idx
+    on public.locations (device_id, recorded_at desc);
+
+alter table public.locations enable row level security;
+
+do $$ begin
+    create policy "anon can insert locations"
+        on public.locations for insert to anon with check (true);
+exception when duplicate_object then null; end $$;
+
+do $$ begin
+    create policy "anon can read locations"
+        on public.locations for select to anon using (true);
+exception when duplicate_object then null; end $$;
+"""
+
+
+def setup_database(creds: dict) -> list[str]:
+    """Creates the locations table/policies over a direct Postgres connection.
+
+    Uses 'postgress supabase password' (+ optional user) from creds.txt. Tries the
+    direct DB host and the session poolers, since newer Supabase projects only
+    accept pooler connections over IPv4. Returns a per-attempt log.
+    """
+    if psycopg2 is None:
+        return ["psycopg2 is not installed - run: pip install psycopg2-binary"]
+    password = creds.get("postgress supabase password") or creds.get("postgres supabase password")
+    if not password:
+        return ["creds.txt must contain 'postgress supabase password'"]
+    proj = creds.get("supabase proj id")
+    if not proj:
+        return ["creds.txt must contain 'supabase proj id'"]
+    user = creds.get("postgress supabase user") or creds.get("postgres supabase user") or "postgres"
+
+    candidates = [(f"db.{proj}.supabase.co", 5432, user if "." in user else "postgres")]
+    for region in ("us-east-1", "us-east-2", "us-west-1", "eu-west-1", "eu-west-2",
+                   "eu-central-1", "sa-east-1", "ap-southeast-1", "ap-southeast-2",
+                   "ap-south-1", "ap-northeast-1"):
+        candidates.append((f"aws-0-{region}.pooler.supabase.com", 5432, f"postgres.{proj}"))
+
+    log = []
+    for host, port, pg_user in candidates:
+        try:
+            conn = psycopg2.connect(host=host, port=port, dbname="postgres",
+                                    user=pg_user, password=password,
+                                    sslmode="require", connect_timeout=8)
+            conn.autocommit = True
+            with conn.cursor() as cur:
+                cur.execute(SCHEMA_SQL)
+            conn.close()
+            log.append(f"OK   {host}: schema created (locations table ready)")
+            return log
+        except Exception as e:
+            log.append(f"FAIL {host}: {str(e).strip()}")
+    return log
 
 
 def parse_creds(path: Path) -> dict:
@@ -272,12 +344,20 @@ def main() -> None:
                         help="interactive live tracking: press P to toggle, Q to quit")
     parser.add_argument("--interval", type=float, default=10.0,
                         help="refresh interval in seconds for --live (default: 10)")
+    parser.add_argument("--setup-db", action="store_true",
+                        help="create the locations table/policies on the Supabase Postgres "
+                             "(uses 'postgress supabase password' from creds.txt)")
     args = parser.parse_args()
 
     creds_path = Path(args.creds)
     if not creds_path.exists():
         sys.exit(f"credentials file not found: {creds_path}")
     creds = parse_creds(creds_path)
+
+    if args.setup_db:
+        for line in setup_database(creds):
+            print(line)
+        return
 
     services = supabase_services(creds)
     if not services:
