@@ -86,13 +86,64 @@ def supabase_services(creds: dict) -> list[tuple[str, str]]:
 def fetch_locations_any(services: list[tuple[str, str]], limit: int,
                         device: str | None) -> list[dict]:
     """Tries each configured service in order; returns the first successful response."""
-    last_error: Exception | None = None
+    errors = []
     for base_url, api_key in services:
         try:
             return fetch_locations(base_url, api_key, limit, device)
         except Exception as e:
-            last_error = e
-    raise last_error if last_error else RuntimeError("no Supabase services configured")
+            errors.append(f"{base_url}: {e}")
+    raise RuntimeError("; ".join(errors) if errors else "no Supabase services configured")
+
+
+def candidate_services(creds: dict) -> list[tuple[str, str]]:
+    """Every plausible (base_url, api_key) combination from creds.txt, primary combos first.
+
+    Used as a fallback when the strictly-configured services fail, so a mislabeled
+    credential line (e.g. key under the wrong label) still connects.
+    """
+    urls: list[str] = []
+
+    def add_url(u: str | None):
+        if u:
+            u = u.rstrip("/")
+            if not u.startswith("http"):
+                u = f"https://{u}"
+            if u not in urls:
+                urls.append(u)
+
+    add_url(creds.get("supabase local address"))
+    add_url(creds.get("supabase url"))
+    if creds.get("supabase proj id"):
+        add_url(f"https://{creds['supabase proj id']}.supabase.co")
+    add_url(creds.get("supabase local address 2"))
+    add_url(creds.get("supabase url 2"))
+    if creds.get("supabase proj id 2"):
+        add_url(f"https://{creds['supabase proj id 2']}.supabase.co")
+    add_url(creds.get("miget url"))
+    add_url(creds.get("migetdb url"))
+
+    keys: list[str] = []
+    for label in ("supabase apikey pub", "supabase apikey", "supabase apikey pub 2",
+                  "supabase apikey 2", "backup supabase apikey pub", "backup supabase apikey"):
+        value = creds.get(label)
+        if value and value not in keys:
+            keys.append(value)
+
+    return [(u, k) for u in urls for k in keys]
+
+
+def probe_services(creds: dict, limit: int = 1,
+                   device: str | None = None) -> tuple[tuple[str, str] | None, list[str]]:
+    """Tries every candidate combination; returns (first working service, per-attempt log)."""
+    log = []
+    for base_url, api_key in candidate_services(creds):
+        try:
+            fetch_locations(base_url, api_key, limit, device)
+            log.append(f"OK   {base_url} (key ...{api_key[-6:]})")
+            return (base_url, api_key), log
+        except Exception as e:
+            log.append(f"FAIL {base_url} (key ...{api_key[-6:]}): {e}")
+    return None, log
 
 
 def decrypt(private_key: str, encoded: str) -> dict:

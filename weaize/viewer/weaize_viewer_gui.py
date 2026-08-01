@@ -27,14 +27,22 @@ from tkinter import (
     W,
     BooleanVar,
     StringVar,
+    Text,
     Tk,
+    Toplevel,
     filedialog,
     messagebox,
     simpledialog,
     ttk,
 )
 
-from weaize_viewer import decrypt, fetch_locations_any, parse_creds, supabase_services
+from weaize_viewer import (
+    decrypt,
+    fetch_locations_any,
+    parse_creds,
+    probe_services,
+    supabase_services,
+)
 
 
 class ViewerApp:
@@ -44,6 +52,7 @@ class ViewerApp:
         root.geometry("760x480")
 
         self.services: list[tuple[str, str]] = []
+        self.creds: dict = {}
         self.private_key = None
         self.rows: list[dict] = []
         self.live = BooleanVar(value=False)
@@ -90,6 +99,7 @@ class ViewerApp:
     def apply_creds(self, path: Path):
         try:
             creds = parse_creds(path)
+            self.creds = creds
             self.services = supabase_services(creds)
             self.private_key = creds.get("private key")
         except SystemExit as e:
@@ -119,11 +129,38 @@ class ViewerApp:
     def _fetch(self, limit: int):
         try:
             rows = fetch_locations_any(self.services, limit, None)
-        except Exception as e:
-            msg = f"Fetch failed: {e}"
-            self.root.after(0, lambda: self.status.set(msg))
+        except Exception:
+            # The configured services failed; probe every credential combination
+            # from creds.txt in case a value sits under the wrong label.
+            self.root.after(0, lambda: self.status.set(
+                "Configured service failed - trying all credential combinations..."))
+            working, log = probe_services(self.creds, limit=1)
+            if working:
+                self.services = [working]
+                try:
+                    rows = fetch_locations_any(self.services, limit, None)
+                    self.root.after(0, lambda: self._show(rows))
+                    return
+                except Exception as e2:
+                    log.append(str(e2))
+            report = "\n".join(log) or "No credential combinations found in creds.txt"
+            self.root.after(0, lambda: self._show_diagnostics(report))
             return
         self.root.after(0, lambda: self._show(rows))
+
+    def _show_diagnostics(self, report: str):
+        self.status.set("All connection attempts failed - see diagnostics window")
+        win = Toplevel(self.root)
+        win.title("Connection diagnostics")
+        win.geometry("700x300")
+        text = Text(win, wrap="word")
+        text.insert("1.0",
+                    "Tried every URL/API-key combination from creds.txt:\n\n" + report +
+                    "\n\nCheck: URL like https://YOURPROJECT.supabase.co (or fill "
+                    "'supabase proj id'), anon/public API key, and that "
+                    "server/schema.sql was run in the Supabase SQL editor.")
+        text.config(state="disabled")
+        text.pack(fill=BOTH, expand=True)
 
     def _show(self, rows: list[dict]):
         self.tree.delete(*self.tree.get_children())
