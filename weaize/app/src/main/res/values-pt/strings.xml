@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Weaize</string>
+    <string name="start_tracking">Iniciar</string>
+    <string name="stop_tracking">Parar</string>
+    <string name="settings">Configurações</string>
+    <string name="download_maps">Mapas offline</string>
+    <string name="import_creds">Importar creds.txt</string>
+    <string name="speed_format">%1$d km/h</string>
+    <string name="permission_needed">A permissão de localização é necessária para o rastreamento</string>
+    <string name="creds_imported">Credenciais importadas</string>
+    <string name="creds_invalid">Não foi possível ler as credenciais do arquivo</string>
+    <string name="notification_tracking">Rastreando localização</string>
+    <string name="tts_speed_warning">Atenção. Você está dirigindo a %1$d quilômetros por hora. O limite é %2$d.</string>
+    <string name="tts_sharp_turn">Curva acentuada detectada. Reduza a velocidade.</string>
+    <string name="tts_gps_lost">Sinal de GPS perdido.</string>
+    <string name="download_started">Download iniciado…</string>
+    <string name="download_complete">Download concluído</string>
+    <string name="download_failed">Download concluído com %1$d erros</string>
+    <string name="download_progress">Baixando bloco %1$d (zoom %2$d)</string>
+    <string name="download_region">Baixar região</string>
+    <string name="north">Latitude norte</string>
+    <string name="south">Latitude sul</string>
+    <string name="east">Longitude leste</string>
+    <string name="west">Longitude oeste</string>
+
+    <string name="pref_language">Idioma de voz</string>
+    <string name="pref_speed_limit">Limite de velocidade (km/h)</string>
+    <string name="pref_voice_warnings">Avisos de voz</string>
+    <string name="pref_auto_download">Baixar automaticamente blocos ao meu redor</string>
+    <string name="pref_private_key">Chave privada (criptografa os envios)</string>
+    <string name="pref_supabase_url">URL do Supabase</string>
+    <string name="pref_supabase_apikey">Chave de API do Supabase (pública/anon)</string>
+    <string name="pref_upload_interval">Intervalo de envio (segundos)</string>
+</resources>
