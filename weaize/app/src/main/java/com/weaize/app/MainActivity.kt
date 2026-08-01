@@ -32,6 +32,7 @@ class MainActivity : AppCompatActivity() {
 
   private lateinit var map: MapView
   private lateinit var speedText: TextView
+  private lateinit var uploadStatusText: TextView
   private var marker: Marker? = null
   private var tracking = false
   private var lastAutoDownload = 0L
@@ -65,6 +66,7 @@ class MainActivity : AppCompatActivity() {
           val lon = intent.getDoubleExtra(TrackerService.EXTRA_LON, 0.0)
           val speedKmh = intent.getFloatExtra(TrackerService.EXTRA_SPEED_KMH, 0f)
           onLocation(lat, lon, speedKmh)
+          updateUploadStatus()
         }
       }
 
@@ -80,6 +82,8 @@ class MainActivity : AppCompatActivity() {
 
     speedText = findViewById(R.id.speed_text)
     speedText.text = getString(R.string.speed_format, 0)
+    uploadStatusText = findViewById(R.id.upload_status_text)
+    updateUploadStatus()
 
     findViewById<Button>(R.id.btn_start).setOnClickListener { toggleTracking() }
     findViewById<Button>(R.id.btn_settings).setOnClickListener {
@@ -252,6 +256,17 @@ class MainActivity : AppCompatActivity() {
         locationReceiver,
         IntentFilter(TrackerService.ACTION_LOCATION_UPDATE),
         ContextCompat.RECEIVER_NOT_EXPORTED)
+    updateUploadStatus()
+  }
+
+  private fun updateUploadStatus() {
+    val status = Prefs.lastUploadStatus(this)
+    uploadStatusText.text =
+        when {
+          status.isBlank() -> ""
+          status == "OK" -> getString(R.string.upload_status_ok)
+          else -> getString(R.string.upload_status_error, status)
+        }
   }
 
   override fun onPause() {
