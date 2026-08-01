@@ -2,3 +2,4 @@ creds.txt
 local.properties
 .gradle/
 build/
+__pycache__/
