@@ -64,6 +64,37 @@ def supabase_base_url(creds: dict) -> str:
     return url.rstrip("/")
 
 
+def supabase_services(creds: dict) -> list[tuple[str, str]]:
+    """Returns [(base_url, api_key), ...] for the primary and, if set, backup service."""
+    services = []
+    primary_key = creds.get("supabase apikey pub") or creds.get("supabase apikey")
+    if primary_key:
+        services.append((supabase_base_url(creds), primary_key))
+    url2 = (creds.get("supabase local address 2") or creds.get("supabase url 2")
+            or creds.get("backup supabase local address") or creds.get("backup supabase url"))
+    if not url2:
+        proj2 = creds.get("supabase proj id 2") or creds.get("backup supabase proj id")
+        if proj2:
+            url2 = f"https://{proj2}.supabase.co"
+    key2 = (creds.get("supabase apikey pub 2") or creds.get("supabase apikey 2")
+            or creds.get("backup supabase apikey pub") or creds.get("backup supabase apikey"))
+    if url2 and key2:
+        services.append((url2.rstrip("/"), key2))
+    return services
+
+
+def fetch_locations_any(services: list[tuple[str, str]], limit: int,
+                        device: str | None) -> list[dict]:
+    """Tries each configured service in order; returns the first successful response."""
+    last_error: Exception | None = None
+    for base_url, api_key in services:
+        try:
+            return fetch_locations(base_url, api_key, limit, device)
+        except Exception as e:
+            last_error = e
+    raise last_error if last_error else RuntimeError("no Supabase services configured")
+
+
 def decrypt(private_key: str, encoded: str) -> dict:
     raw = base64.b64decode(encoded)
     salt, iv, ct = raw[:SALT_LEN], raw[SALT_LEN:SALT_LEN + IV_LEN], raw[SALT_LEN + IV_LEN:]
@@ -145,8 +176,8 @@ class KeyPoller:
         return None
 
 
-def show_latest(base_url: str, api_key: str, private_key: str, device: str | None) -> None:
-    rows = fetch_locations(base_url, api_key, 1, device)
+def show_latest(services: list[tuple[str, str]], private_key: str, device: str | None) -> None:
+    rows = fetch_locations_any(services, 1, device)
     if rows:
         print(format_row(rows[0], private_key))
     else:
@@ -154,7 +185,7 @@ def show_latest(base_url: str, api_key: str, private_key: str, device: str | Non
     print()
 
 
-def live_mode(base_url: str, api_key: str, private_key: str, device: str | None,
+def live_mode(services: list[tuple[str, str]], private_key: str, device: str | None,
               interval: float) -> None:
     print("Live mode: press P to start/stop tracking, Q to quit.\n")
     tracking = False
@@ -173,7 +204,7 @@ def live_mode(base_url: str, api_key: str, private_key: str, device: str | None,
             if tracking and time.monotonic() - last_fetch >= interval:
                 last_fetch = time.monotonic()
                 try:
-                    show_latest(base_url, api_key, private_key, device)
+                    show_latest(services, private_key, device)
                 except Exception as e:
                     print(f"fetch failed: {e}")
             time.sleep(0.05)
@@ -197,8 +228,8 @@ def main() -> None:
         sys.exit(f"credentials file not found: {creds_path}")
     creds = parse_creds(creds_path)
 
-    api_key = creds.get("supabase apikey pub") or creds.get("supabase apikey")
-    if not api_key:
+    services = supabase_services(creds)
+    if not services:
         sys.exit("creds.txt must contain 'supabase apikey pub'")
 
     private_key = creds.get("private key") or getpass.getpass("Private key: ")
@@ -206,10 +237,10 @@ def main() -> None:
         sys.exit("a private key is required to decrypt locations")
 
     if args.live:
-        live_mode(supabase_base_url(creds), api_key, private_key, args.device, args.interval)
+        live_mode(services, private_key, args.device, args.interval)
         return
 
-    rows = fetch_locations(supabase_base_url(creds), api_key, args.history, args.device)
+    rows = fetch_locations_any(services, args.history, args.device)
     if not rows:
         print("No locations recorded yet.")
         return

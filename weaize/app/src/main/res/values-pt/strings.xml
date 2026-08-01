@@ -46,5 +46,7 @@
     <string name="pref_private_key">Chave privada (criptografa os envios)</string>
     <string name="pref_supabase_url">URL do Supabase</string>
     <string name="pref_supabase_apikey">Chave de API do Supabase (pública/anon)</string>
+    <string name="pref_supabase_url_2">URL do Supabase de backup</string>
+    <string name="pref_supabase_apikey_2">Chave de API do Supabase de backup (pública/anon)</string>
     <string name="pref_upload_interval">Intervalo de envio (segundos)</string>
 </resources>

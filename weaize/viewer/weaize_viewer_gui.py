@@ -34,7 +34,7 @@ from tkinter import (
     ttk,
 )
 
-from weaize_viewer import decrypt, fetch_locations, parse_creds, supabase_base_url
+from weaize_viewer import decrypt, fetch_locations_any, parse_creds, supabase_services
 
 
 class ViewerApp:
@@ -43,8 +43,7 @@ class ViewerApp:
         root.title("Weaize Viewer")
         root.geometry("760x480")
 
-        self.base_url = None
-        self.api_key = None
+        self.services: list[tuple[str, str]] = []
         self.private_key = None
         self.rows: list[dict] = []
         self.live = BooleanVar(value=False)
@@ -91,13 +90,12 @@ class ViewerApp:
     def apply_creds(self, path: Path):
         try:
             creds = parse_creds(path)
-            self.base_url = supabase_base_url(creds)
-            self.api_key = creds.get("supabase apikey pub") or creds.get("supabase apikey")
+            self.services = supabase_services(creds)
             self.private_key = creds.get("private key")
         except SystemExit as e:
             messagebox.showerror("Weaize Viewer", str(e))
             return
-        if not self.api_key:
+        if not self.services:
             messagebox.showerror("Weaize Viewer", "creds.txt must contain 'supabase apikey pub'")
             return
         if not self.private_key:
@@ -106,11 +104,12 @@ class ViewerApp:
         if not self.private_key:
             messagebox.showerror("Weaize Viewer", "A private key is required to decrypt locations")
             return
-        self.status.set(f"Loaded credentials ({self.base_url})")
+        backup = " + backup" if len(self.services) > 1 else ""
+        self.status.set(f"Loaded credentials ({self.services[0][0]}{backup})")
         self.refresh()
 
     def refresh(self):
-        if not self.base_url:
+        if not self.services:
             self.status.set("Load a creds.txt first")
             return
         limit = int(self.history_count.get() or 20)
@@ -119,7 +118,7 @@ class ViewerApp:
 
     def _fetch(self, limit: int):
         try:
-            rows = fetch_locations(self.base_url, self.api_key, limit, None)
+            rows = fetch_locations_any(self.services, limit, None)
         except Exception as e:
             msg = f"Fetch failed: {e}"
             self.root.after(0, lambda: self.status.set(msg))

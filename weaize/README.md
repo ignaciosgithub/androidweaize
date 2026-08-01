@@ -51,6 +51,12 @@ The GUI shows the location history in a table, has a "Live tracking"
 auto-refresh toggle, and double-clicking a row (or "Open in map") opens the
 position in OpenStreetMap in your browser.
 
+A backup Postgres/Supabase service can be configured with the
+`supabase local address 2` / `supabase proj id 2` / `supabase apikey pub 2`
+lines in creds.txt (and the matching "Backup Supabase" fields in the app's
+Settings): the app retries failed uploads against the backup and the viewer
+falls back to it when the primary is unreachable.
+
 The viewer never deletes anything; it decrypts locally using the private key from
 creds.txt (or an interactive prompt) and prints coordinates, speed, bearing and an
 OpenStreetMap link.

@@ -18,6 +18,8 @@ object CredsFile {
       val supabaseUrl: String?,
       val supabaseApiKey: String?,
       val projectId: String?,
+      val supabaseUrl2: String? = null,
+      val supabaseApiKey2: String? = null,
   )
 
   fun parse(text: String): Creds {
@@ -33,10 +35,21 @@ object CredsFile {
     val url =
         map["supabase local address"]
             ?: map["supabase url"] ?: projId?.let { "https://$it.supabase.co" }
+    val projId2 = map["supabase proj id 2"] ?: map["backup supabase proj id"]
+    val url2 =
+        map["supabase local address 2"]
+            ?: map["supabase url 2"]
+            ?: map["backup supabase local address"]
+            ?: map["backup supabase url"] ?: projId2?.let { "https://$it.supabase.co" }
     return Creds(
         supabaseUrl = url?.removeSuffix("/"),
         supabaseApiKey = map["supabase apikey pub"] ?: map["supabase apikey"],
         projectId = projId,
+        supabaseUrl2 = url2?.removeSuffix("/"),
+        supabaseApiKey2 =
+            map["supabase apikey pub 2"]
+                ?: map["supabase apikey 2"] ?: map["backup supabase apikey pub"]
+                    ?: map["backup supabase apikey"],
     )
   }
 
@@ -48,6 +61,8 @@ object CredsFile {
     val editor = Prefs.get(context).edit()
     creds.supabaseUrl?.let { editor.putString(Prefs.KEY_SUPABASE_URL, it) }
     creds.supabaseApiKey?.let { editor.putString(Prefs.KEY_SUPABASE_APIKEY, it) }
+    creds.supabaseUrl2?.let { editor.putString(Prefs.KEY_SUPABASE_URL_2, it) }
+    creds.supabaseApiKey2?.let { editor.putString(Prefs.KEY_SUPABASE_APIKEY_2, it) }
     editor.apply()
     return creds
   }

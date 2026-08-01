@@ -12,6 +12,8 @@ object Prefs {
   const val KEY_PRIVATE_KEY = "private_key"
   const val KEY_SUPABASE_URL = "supabase_url"
   const val KEY_SUPABASE_APIKEY = "supabase_apikey"
+  const val KEY_SUPABASE_URL_2 = "supabase_url_2"
+  const val KEY_SUPABASE_APIKEY_2 = "supabase_apikey_2"
   const val KEY_DEVICE_ID = "device_id"
   const val KEY_UPLOAD_INTERVAL = "upload_interval_s"
 
@@ -33,6 +35,11 @@ object Prefs {
 
   fun supabaseApiKey(context: Context): String =
       get(context).getString(KEY_SUPABASE_APIKEY, "") ?: ""
+
+  fun supabaseUrl2(context: Context): String = get(context).getString(KEY_SUPABASE_URL_2, "") ?: ""
+
+  fun supabaseApiKey2(context: Context): String =
+      get(context).getString(KEY_SUPABASE_APIKEY_2, "") ?: ""
 
   fun deviceId(context: Context): String {
     val p = get(context)

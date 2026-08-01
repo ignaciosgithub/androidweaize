@@ -46,6 +46,8 @@
     <string name="pref_private_key">Private key (encrypts uploads)</string>
     <string name="pref_supabase_url">Supabase URL</string>
     <string name="pref_supabase_apikey">Supabase API key (public/anon)</string>
+    <string name="pref_supabase_url_2">Backup Supabase URL</string>
+    <string name="pref_supabase_apikey_2">Backup Supabase API key (public/anon)</string>
     <string name="pref_upload_interval">Upload interval (seconds)</string>
 
     <string-array name="language_entries">

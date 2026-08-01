@@ -12,7 +12,8 @@ import org.json.JSONObject
  * Uploads encrypted location rows to a Supabase Postgres table via the PostgREST endpoint.
  *
  * Rows are append-only (no deletes), so history is preserved. The payload column contains only
- * ciphertext; see [Crypto].
+ * ciphertext; see [Crypto]. If a backup credential set is configured, uploads that fail against
+ * the primary service are retried against the backup.
  */
 class SupabaseClient(private val context: Context) {
   private val http =
@@ -31,10 +32,8 @@ class SupabaseClient(private val context: Context) {
       accuracy: Float,
       timestampMs: Long,
   ): Boolean {
-    val baseUrl = Prefs.supabaseUrl(context)
-    val apiKey = Prefs.supabaseApiKey(context)
     val privateKey = Prefs.privateKey(context)
-    if (baseUrl.isBlank() || apiKey.isBlank() || privateKey.isBlank()) return false
+    if (privateKey.isBlank()) return false
 
     val payload =
         JSONObject()
@@ -53,6 +52,19 @@ class SupabaseClient(private val context: Context) {
             .put("payload", Crypto.encrypt(privateKey, payload))
             .toString()
 
+    val services =
+        listOf(
+                Prefs.supabaseUrl(context) to Prefs.supabaseApiKey(context),
+                Prefs.supabaseUrl2(context) to Prefs.supabaseApiKey2(context),
+            )
+            .filter { (url, key) -> url.isNotBlank() && key.isNotBlank() }
+    for ((baseUrl, apiKey) in services) {
+      if (post(baseUrl, apiKey, row)) return true
+    }
+    return false
+  }
+
+  private fun post(baseUrl: String, apiKey: String, row: String): Boolean {
     val request =
         Request.Builder()
             .url("$baseUrl/rest/v1/locations")
@@ -61,7 +73,6 @@ class SupabaseClient(private val context: Context) {
             .header("Prefer", "return=minimal")
             .post(row.toRequestBody(json))
             .build()
-
     return try {
       http.newCall(request).execute().use { it.isSuccessful }
     } catch (e: IOException) {
