@@ -1,6 +1,7 @@
 package com.weaize.app
 
 import android.content.Context
+import java.io.File
 import java.io.IOException
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
@@ -14,8 +15,19 @@ import org.json.JSONObject
  * Rows are append-only (no deletes), so history is preserved. The payload column contains only
  * ciphertext; see [Crypto]. If a backup credential set is configured, uploads that fail against
  * the primary service are retried against the backup.
+ *
+ * Rows that cannot be delivered (offline, server unreachable) are queued on disk and flushed,
+ * oldest first, once an upload succeeds again.
  */
 class SupabaseClient(private val context: Context) {
+
+  companion object {
+    private const val QUEUE_FILE = "upload_queue.jsonl"
+    private const val QUEUE_MAX_ROWS = 20_000
+  }
+
+  private val queueFile: File
+    get() = File(context.filesDir, QUEUE_FILE)
   private val http =
       OkHttpClient.Builder()
           .connectTimeout(java.time.Duration.ofSeconds(10))
@@ -69,13 +81,43 @@ class SupabaseClient(private val context: Context) {
     for ((baseUrl, apiKey) in services) {
       val error = post(baseUrl, apiKey, row)
       if (error == null) {
-        Prefs.setLastUploadStatus(context, "OK")
+        val flushed = flushQueue(services)
+        Prefs.setLastUploadStatus(
+            context, if (flushed > 0) "OK (recovered $flushed queued)" else "OK")
         return true
       }
       errors.add("$baseUrl: $error")
     }
-    Prefs.setLastUploadStatus(context, errors.joinToString("; "))
+    val queued = enqueue(row)
+    Prefs.setLastUploadStatus(context, "${errors.joinToString("; ")} ($queued queued)")
     return false
+  }
+
+  /** Appends an undeliverable row to the on-disk queue; returns the queue size. */
+  @Synchronized
+  private fun enqueue(row: String): Int {
+    val lines = if (queueFile.exists()) queueFile.readLines().toMutableList() else mutableListOf()
+    lines.add(row)
+    while (lines.size > QUEUE_MAX_ROWS) lines.removeAt(0)
+    queueFile.writeText(lines.joinToString("\n"))
+    return lines.size
+  }
+
+  /** Uploads queued rows oldest-first; stops at the first failure. Returns rows delivered. */
+  @Synchronized
+  private fun flushQueue(services: List<Pair<String, String>>): Int {
+    if (!queueFile.exists()) return 0
+    val lines = queueFile.readLines().filter { it.isNotBlank() }.toMutableList()
+    var delivered = 0
+    while (lines.isNotEmpty()) {
+      val row = lines.first()
+      val sent = services.any { (baseUrl, apiKey) -> post(baseUrl, apiKey, row) == null }
+      if (!sent) break
+      lines.removeAt(0)
+      delivered++
+    }
+    if (lines.isEmpty()) queueFile.delete() else queueFile.writeText(lines.joinToString("\n"))
+    return delivered
   }
 
   /** Returns null on success, otherwise a short error description. */
