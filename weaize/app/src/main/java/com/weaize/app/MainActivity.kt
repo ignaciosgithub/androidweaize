@@ -70,12 +70,7 @@ class MainActivity : AppCompatActivity() {
 
   override fun onCreate(savedInstanceState: Bundle?) {
     super.onCreate(savedInstanceState)
-    val config = Configuration.getInstance()
-    config.load(this, Prefs.get(this))
-    config.userAgentValue = packageName
-    val base = getExternalFilesDir(null) ?: filesDir
-    config.osmdroidBasePath = base
-    config.osmdroidTileCache = java.io.File(base, "tiles")
+    OsmConfig.init(this)
     setContentView(R.layout.activity_main)
 
     map = findViewById(R.id.map)
