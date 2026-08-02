@@ -45,8 +45,11 @@ class MainActivity : AppCompatActivity() {
 
   private val permissionLauncher =
       registerForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) { grants ->
-        if (grants[Manifest.permission.ACCESS_FINE_LOCATION] == true) startTracking()
-        else Toast.makeText(this, R.string.permission_needed, Toast.LENGTH_LONG).show()
+        when (grants[Manifest.permission.ACCESS_FINE_LOCATION]) {
+          true -> startTracking()
+          false -> Toast.makeText(this, R.string.permission_needed, Toast.LENGTH_LONG).show()
+          null -> Unit // background-location follow-up request; nothing to do here
+        }
       }
 
   private val credsLauncher =
@@ -85,7 +88,11 @@ class MainActivity : AppCompatActivity() {
     uploadStatusText = findViewById(R.id.upload_status_text)
     updateUploadStatus()
 
-    findViewById<Button>(R.id.btn_start).setOnClickListener { toggleTracking() }
+    tracking = Prefs.trackingEnabled(this)
+    findViewById<Button>(R.id.btn_start).apply {
+      setText(if (tracking) R.string.stop_tracking else R.string.start_tracking)
+      setOnClickListener { toggleTracking() }
+    }
     findViewById<Button>(R.id.btn_settings).setOnClickListener {
       startActivity(Intent(this, SettingsActivity::class.java))
     }
@@ -188,6 +195,7 @@ class MainActivity : AppCompatActivity() {
 
   private fun toggleTracking() {
     if (tracking) {
+      Prefs.setTrackingEnabled(this, false)
       stopService(Intent(this, TrackerService::class.java))
       tracking = false
       findViewById<Button>(R.id.btn_start).setText(R.string.start_tracking)
@@ -210,6 +218,29 @@ class MainActivity : AppCompatActivity() {
     ContextCompat.startForegroundService(this, Intent(this, TrackerService::class.java))
     tracking = true
     findViewById<Button>(R.id.btn_start).setText(R.string.stop_tracking)
+    requestBackgroundPermissions()
+  }
+
+  /**
+   * Ask for what long-running background tracking needs: background location ("Allow all the
+   * time") and exemption from battery optimization so the system doesn't kill the service.
+   */
+  private fun requestBackgroundPermissions() {
+    if (Build.VERSION.SDK_INT >= 29 &&
+        ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_BACKGROUND_LOCATION) !=
+            PackageManager.PERMISSION_GRANTED) {
+      permissionLauncher.launch(arrayOf(Manifest.permission.ACCESS_BACKGROUND_LOCATION))
+    }
+    val pm = getSystemService(POWER_SERVICE) as android.os.PowerManager
+    if (!pm.isIgnoringBatteryOptimizations(packageName)) {
+      try {
+        startActivity(
+            Intent(android.provider.Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS)
+                .setData(android.net.Uri.parse("package:$packageName")))
+      } catch (e: android.content.ActivityNotFoundException) {
+        // Some devices don't offer the dialog; tracking still works, just less reliably.
+      }
+    }
   }
 
   private fun onLocation(lat: Double, lon: Double, speedKmh: Float) {

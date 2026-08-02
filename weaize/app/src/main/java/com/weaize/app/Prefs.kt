@@ -17,6 +17,7 @@ object Prefs {
   const val KEY_DEVICE_ID = "device_id"
   const val KEY_UPLOAD_INTERVAL = "upload_interval_s"
   const val KEY_LAST_UPLOAD_STATUS = "last_upload_status"
+  const val KEY_TRACKING_ENABLED = "tracking_enabled"
 
   fun get(context: Context): SharedPreferences =
       PreferenceManager.getDefaultSharedPreferences(context)
@@ -60,5 +61,12 @@ object Prefs {
 
   fun setLastUploadStatus(context: Context, status: String) {
     get(context).edit().putString(KEY_LAST_UPLOAD_STATUS, status).apply()
+  }
+
+  fun trackingEnabled(context: Context): Boolean =
+      get(context).getBoolean(KEY_TRACKING_ENABLED, false)
+
+  fun setTrackingEnabled(context: Context, enabled: Boolean) {
+    get(context).edit().putBoolean(KEY_TRACKING_ENABLED, enabled).apply()
   }
 }

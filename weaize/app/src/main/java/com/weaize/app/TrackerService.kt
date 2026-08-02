@@ -68,10 +68,29 @@ class TrackerService : Service(), LocationListener, SensorEventListener {
   }
 
   override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
+    Prefs.setTrackingEnabled(this, true)
     startForeground(NOTIFICATION_ID, buildNotification())
     startLocationUpdates()
     gyro?.let { sensorManager.registerListener(this, it, SensorManager.SENSOR_DELAY_NORMAL) }
     return START_STICKY
+  }
+
+  override fun onTaskRemoved(rootIntent: Intent?) {
+    // Keep tracking when the app is swiped away: schedule the service to restart.
+    if (Prefs.trackingEnabled(this)) {
+      val restart =
+          PendingIntent.getForegroundService(
+              this,
+              1,
+              Intent(this, TrackerService::class.java),
+              PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT)
+      val alarm = getSystemService(Context.ALARM_SERVICE) as android.app.AlarmManager
+      alarm.set(
+          android.app.AlarmManager.ELAPSED_REALTIME_WAKEUP,
+          android.os.SystemClock.elapsedRealtime() + 2000,
+          restart)
+    }
+    super.onTaskRemoved(rootIntent)
   }
 
   private fun startLocationUpdates() {
