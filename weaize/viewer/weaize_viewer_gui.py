@@ -27,14 +27,23 @@ from tkinter import (
     W,
     BooleanVar,
     StringVar,
+    Text,
     Tk,
+    Toplevel,
     filedialog,
     messagebox,
     simpledialog,
     ttk,
 )
 
-from weaize_viewer import decrypt, fetch_locations, parse_creds, supabase_base_url
+from weaize_viewer import (
+    decrypt,
+    fetch_locations_any,
+    parse_creds,
+    probe_services,
+    setup_database,
+    supabase_services,
+)
 
 
 class ViewerApp:
@@ -43,8 +52,8 @@ class ViewerApp:
         root.title("Weaize Viewer")
         root.geometry("760x480")
 
-        self.base_url = None
-        self.api_key = None
+        self.services: list[tuple[str, str]] = []
+        self.creds: dict = {}
         self.private_key = None
         self.rows: list[dict] = []
         self.live = BooleanVar(value=False)
@@ -62,6 +71,7 @@ class ViewerApp:
         self.history_count.set(20)
         self.history_count.grid(row=0, column=4)
         ttk.Button(top, text="Open in map", command=self.open_selected).grid(row=0, column=5, padx=12)
+        ttk.Button(top, text="Set up database", command=self.setup_db).grid(row=0, column=6)
 
         columns = ("time", "lat", "lon", "speed", "bearing", "accuracy", "device")
         self.tree = ttk.Treeview(root, columns=columns, show="headings")
@@ -91,13 +101,13 @@ class ViewerApp:
     def apply_creds(self, path: Path):
         try:
             creds = parse_creds(path)
-            self.base_url = supabase_base_url(creds)
-            self.api_key = creds.get("supabase apikey pub") or creds.get("supabase apikey")
+            self.creds = creds
+            self.services = supabase_services(creds)
             self.private_key = creds.get("private key")
         except SystemExit as e:
             messagebox.showerror("Weaize Viewer", str(e))
             return
-        if not self.api_key:
+        if not self.services:
             messagebox.showerror("Weaize Viewer", "creds.txt must contain 'supabase apikey pub'")
             return
         if not self.private_key:
@@ -106,11 +116,35 @@ class ViewerApp:
         if not self.private_key:
             messagebox.showerror("Weaize Viewer", "A private key is required to decrypt locations")
             return
-        self.status.set(f"Loaded credentials ({self.base_url})")
+        backup = " + backup" if len(self.services) > 1 else ""
+        self.status.set(f"Loaded credentials ({self.services[0][0]}{backup})")
         self.refresh()
 
+    def setup_db(self):
+        """Creates the locations table on the Supabase Postgres using the DB password."""
+        if not self.creds:
+            self.status.set("Load a creds.txt first")
+            return
+        self.status.set("Setting up database...")
+
+        def run():
+            log = setup_database(self.creds)
+            report = "\n".join(log)
+            ok = any(line.startswith("OK") for line in log)
+
+            def done():
+                if ok:
+                    self.status.set("Database set up - fetching...")
+                    self.refresh()
+                else:
+                    self._show_diagnostics(report)
+
+            self.root.after(0, done)
+
+        threading.Thread(target=run, daemon=True).start()
+
     def refresh(self):
-        if not self.base_url:
+        if not self.services:
             self.status.set("Load a creds.txt first")
             return
         limit = int(self.history_count.get() or 20)
@@ -119,12 +153,39 @@ class ViewerApp:
 
     def _fetch(self, limit: int):
         try:
-            rows = fetch_locations(self.base_url, self.api_key, limit, None)
-        except Exception as e:
-            msg = f"Fetch failed: {e}"
-            self.root.after(0, lambda: self.status.set(msg))
+            rows = fetch_locations_any(self.services, limit, None)
+        except Exception:
+            # The configured services failed; probe every credential combination
+            # from creds.txt in case a value sits under the wrong label.
+            self.root.after(0, lambda: self.status.set(
+                "Configured service failed - trying all credential combinations..."))
+            working, log = probe_services(self.creds, limit=1)
+            if working:
+                self.services = [working]
+                try:
+                    rows = fetch_locations_any(self.services, limit, None)
+                    self.root.after(0, lambda: self._show(rows))
+                    return
+                except Exception as e2:
+                    log.append(str(e2))
+            report = "\n".join(log) or "No credential combinations found in creds.txt"
+            self.root.after(0, lambda: self._show_diagnostics(report))
             return
         self.root.after(0, lambda: self._show(rows))
+
+    def _show_diagnostics(self, report: str):
+        self.status.set("All connection attempts failed - see diagnostics window")
+        win = Toplevel(self.root)
+        win.title("Connection diagnostics")
+        win.geometry("700x300")
+        text = Text(win, wrap="word")
+        text.insert("1.0",
+                    "Tried every URL/API-key combination from creds.txt:\n\n" + report +
+                    "\n\nCheck: URL like https://YOURPROJECT.supabase.co (or fill "
+                    "'supabase proj id'), anon/public API key, and that "
+                    "server/schema.sql was run in the Supabase SQL editor.")
+        text.config(state="disabled")
+        text.pack(fill=BOTH, expand=True)
 
     def _show(self, rows: list[dict]):
         self.tree.delete(*self.tree.get_children())

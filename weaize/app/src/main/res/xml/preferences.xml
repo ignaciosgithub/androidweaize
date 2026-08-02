@@ -36,6 +36,14 @@
         android:title="@string/pref_supabase_apikey" />
 
     <EditTextPreference
+        android:key="supabase_url_2"
+        android:title="@string/pref_supabase_url_2" />
+
+    <EditTextPreference
+        android:key="supabase_apikey_2"
+        android:title="@string/pref_supabase_apikey_2" />
+
+    <EditTextPreference
         android:key="upload_interval_s"
         android:title="@string/pref_upload_interval"
         android:defaultValue="30" />

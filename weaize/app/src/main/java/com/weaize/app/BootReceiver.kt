@@ -15,6 +15,13 @@ class BootReceiver : BroadcastReceiver() {
     if (ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_FINE_LOCATION) !=
         PackageManager.PERMISSION_GRANTED)
         return
-    ContextCompat.startForegroundService(context, Intent(context, TrackerService::class.java))
+    try {
+      ContextCompat.startForegroundService(context, Intent(context, TrackerService::class.java))
+    } catch (e: SecurityException) {
+      // Some Android versions forbid starting a location foreground service from boot;
+      // tracking then resumes the next time the app is opened.
+    } catch (e: IllegalStateException) {
+      // Same: never crash on boot.
+    }
   }
 }

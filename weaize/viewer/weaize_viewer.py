@@ -17,6 +17,7 @@ Usage:
                                             # live tracking, Q to quit
 
 Requires: pip install cryptography requests
+For --setup-db (creates the locations table): pip install psycopg2-binary
 """
 
 import argparse
@@ -30,6 +31,12 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 import requests
+
+try:
+    import psycopg2
+except ImportError:
+    psycopg2 = None
+
 from cryptography.hazmat.primitives import hashes
 from cryptography.hazmat.primitives.ciphers.aead import AESGCM
 from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
@@ -37,6 +44,71 @@ from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
 PBKDF2_ITERATIONS = 100_000
 SALT_LEN = 16
 IV_LEN = 12
+
+SCHEMA_SQL = """
+create table if not exists public.locations (
+    id bigint generated always as identity primary key,
+    device_id uuid not null,
+    recorded_at timestamptz not null,
+    payload text not null,
+    inserted_at timestamptz not null default now()
+);
+
+create index if not exists locations_device_recorded_idx
+    on public.locations (device_id, recorded_at desc);
+
+alter table public.locations enable row level security;
+
+do $$ begin
+    create policy "anon can insert locations"
+        on public.locations for insert to anon with check (true);
+exception when duplicate_object then null; end $$;
+
+do $$ begin
+    create policy "anon can read locations"
+        on public.locations for select to anon using (true);
+exception when duplicate_object then null; end $$;
+"""
+
+
+def setup_database(creds: dict) -> list[str]:
+    """Creates the locations table/policies over a direct Postgres connection.
+
+    Uses 'postgress supabase password' (+ optional user) from creds.txt. Tries the
+    direct DB host and the session poolers, since newer Supabase projects only
+    accept pooler connections over IPv4. Returns a per-attempt log.
+    """
+    if psycopg2 is None:
+        return ["psycopg2 is not installed - run: pip install psycopg2-binary"]
+    password = creds.get("postgress supabase password") or creds.get("postgres supabase password")
+    if not password:
+        return ["creds.txt must contain 'postgress supabase password'"]
+    proj = creds.get("supabase proj id")
+    if not proj:
+        return ["creds.txt must contain 'supabase proj id'"]
+    user = creds.get("postgress supabase user") or creds.get("postgres supabase user") or "postgres"
+
+    candidates = [(f"db.{proj}.supabase.co", 5432, user if "." in user else "postgres")]
+    for region in ("us-east-1", "us-east-2", "us-west-1", "eu-west-1", "eu-west-2",
+                   "eu-central-1", "sa-east-1", "ap-southeast-1", "ap-southeast-2",
+                   "ap-south-1", "ap-northeast-1"):
+        candidates.append((f"aws-0-{region}.pooler.supabase.com", 5432, f"postgres.{proj}"))
+
+    log = []
+    for host, port, pg_user in candidates:
+        try:
+            conn = psycopg2.connect(host=host, port=port, dbname="postgres",
+                                    user=pg_user, password=password,
+                                    sslmode="require", connect_timeout=8)
+            conn.autocommit = True
+            with conn.cursor() as cur:
+                cur.execute(SCHEMA_SQL)
+            conn.close()
+            log.append(f"OK   {host}: schema created (locations table ready)")
+            return log
+        except Exception as e:
+            log.append(f"FAIL {host}: {str(e).strip()}")
+    return log
 
 
 def parse_creds(path: Path) -> dict:
@@ -62,6 +134,88 @@ def supabase_base_url(creds: dict) -> str:
     if not url:
         sys.exit("creds.txt must contain 'supabase local address', 'supabase url' or 'supabase proj id'")
     return url.rstrip("/")
+
+
+def supabase_services(creds: dict) -> list[tuple[str, str]]:
+    """Returns [(base_url, api_key), ...] for the primary and, if set, backup service."""
+    services = []
+    primary_key = creds.get("supabase apikey pub") or creds.get("supabase apikey")
+    if primary_key:
+        services.append((supabase_base_url(creds), primary_key))
+    url2 = (creds.get("supabase local address 2") or creds.get("supabase url 2")
+            or creds.get("backup supabase local address") or creds.get("backup supabase url"))
+    if not url2:
+        proj2 = creds.get("supabase proj id 2") or creds.get("backup supabase proj id")
+        if proj2:
+            url2 = f"https://{proj2}.supabase.co"
+    key2 = (creds.get("supabase apikey pub 2") or creds.get("supabase apikey 2")
+            or creds.get("backup supabase apikey pub") or creds.get("backup supabase apikey"))
+    if url2 and key2:
+        services.append((url2.rstrip("/"), key2))
+    return services
+
+
+def fetch_locations_any(services: list[tuple[str, str]], limit: int,
+                        device: str | None) -> list[dict]:
+    """Tries each configured service in order; returns the first successful response."""
+    errors = []
+    for base_url, api_key in services:
+        try:
+            return fetch_locations(base_url, api_key, limit, device)
+        except Exception as e:
+            errors.append(f"{base_url}: {e}")
+    raise RuntimeError("; ".join(errors) if errors else "no Supabase services configured")
+
+
+def candidate_services(creds: dict) -> list[tuple[str, str]]:
+    """Every plausible (base_url, api_key) combination from creds.txt, primary combos first.
+
+    Used as a fallback when the strictly-configured services fail, so a mislabeled
+    credential line (e.g. key under the wrong label) still connects.
+    """
+    urls: list[str] = []
+
+    def add_url(u: str | None):
+        if u:
+            u = u.rstrip("/")
+            if not u.startswith("http"):
+                u = f"https://{u}"
+            if u not in urls:
+                urls.append(u)
+
+    add_url(creds.get("supabase local address"))
+    add_url(creds.get("supabase url"))
+    if creds.get("supabase proj id"):
+        add_url(f"https://{creds['supabase proj id']}.supabase.co")
+    add_url(creds.get("supabase local address 2"))
+    add_url(creds.get("supabase url 2"))
+    if creds.get("supabase proj id 2"):
+        add_url(f"https://{creds['supabase proj id 2']}.supabase.co")
+    add_url(creds.get("miget url"))
+    add_url(creds.get("migetdb url"))
+
+    keys: list[str] = []
+    for label in ("supabase apikey pub", "supabase apikey", "supabase apikey pub 2",
+                  "supabase apikey 2", "backup supabase apikey pub", "backup supabase apikey"):
+        value = creds.get(label)
+        if value and value not in keys:
+            keys.append(value)
+
+    return [(u, k) for u in urls for k in keys]
+
+
+def probe_services(creds: dict, limit: int = 1,
+                   device: str | None = None) -> tuple[tuple[str, str] | None, list[str]]:
+    """Tries every candidate combination; returns (first working service, per-attempt log)."""
+    log = []
+    for base_url, api_key in candidate_services(creds):
+        try:
+            fetch_locations(base_url, api_key, limit, device)
+            log.append(f"OK   {base_url} (key ...{api_key[-6:]})")
+            return (base_url, api_key), log
+        except Exception as e:
+            log.append(f"FAIL {base_url} (key ...{api_key[-6:]}): {e}")
+    return None, log
 
 
 def decrypt(private_key: str, encoded: str) -> dict:
@@ -145,8 +299,8 @@ class KeyPoller:
         return None
 
 
-def show_latest(base_url: str, api_key: str, private_key: str, device: str | None) -> None:
-    rows = fetch_locations(base_url, api_key, 1, device)
+def show_latest(services: list[tuple[str, str]], private_key: str, device: str | None) -> None:
+    rows = fetch_locations_any(services, 1, device)
     if rows:
         print(format_row(rows[0], private_key))
     else:
@@ -154,7 +308,7 @@ def show_latest(base_url: str, api_key: str, private_key: str, device: str | Non
     print()
 
 
-def live_mode(base_url: str, api_key: str, private_key: str, device: str | None,
+def live_mode(services: list[tuple[str, str]], private_key: str, device: str | None,
               interval: float) -> None:
     print("Live mode: press P to start/stop tracking, Q to quit.\n")
     tracking = False
@@ -173,7 +327,7 @@ def live_mode(base_url: str, api_key: str, private_key: str, device: str | None,
             if tracking and time.monotonic() - last_fetch >= interval:
                 last_fetch = time.monotonic()
                 try:
-                    show_latest(base_url, api_key, private_key, device)
+                    show_latest(services, private_key, device)
                 except Exception as e:
                     print(f"fetch failed: {e}")
             time.sleep(0.05)
@@ -190,6 +344,9 @@ def main() -> None:
                         help="interactive live tracking: press P to toggle, Q to quit")
     parser.add_argument("--interval", type=float, default=10.0,
                         help="refresh interval in seconds for --live (default: 10)")
+    parser.add_argument("--setup-db", action="store_true",
+                        help="create the locations table/policies on the Supabase Postgres "
+                             "(uses 'postgress supabase password' from creds.txt)")
     args = parser.parse_args()
 
     creds_path = Path(args.creds)
@@ -197,8 +354,13 @@ def main() -> None:
         sys.exit(f"credentials file not found: {creds_path}")
     creds = parse_creds(creds_path)
 
-    api_key = creds.get("supabase apikey pub") or creds.get("supabase apikey")
-    if not api_key:
+    if args.setup_db:
+        for line in setup_database(creds):
+            print(line)
+        return
+
+    services = supabase_services(creds)
+    if not services:
         sys.exit("creds.txt must contain 'supabase apikey pub'")
 
     private_key = creds.get("private key") or getpass.getpass("Private key: ")
@@ -206,10 +368,10 @@ def main() -> None:
         sys.exit("a private key is required to decrypt locations")
 
     if args.live:
-        live_mode(supabase_base_url(creds), api_key, private_key, args.device, args.interval)
+        live_mode(services, private_key, args.device, args.interval)
         return
 
-    rows = fetch_locations(supabase_base_url(creds), api_key, args.history, args.device)
+    rows = fetch_locations_any(services, args.history, args.device)
     if not rows:
         print("No locations recorded yet.")
         return

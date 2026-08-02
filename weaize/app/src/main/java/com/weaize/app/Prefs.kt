@@ -12,8 +12,11 @@ object Prefs {
   const val KEY_PRIVATE_KEY = "private_key"
   const val KEY_SUPABASE_URL = "supabase_url"
   const val KEY_SUPABASE_APIKEY = "supabase_apikey"
+  const val KEY_SUPABASE_URL_2 = "supabase_url_2"
+  const val KEY_SUPABASE_APIKEY_2 = "supabase_apikey_2"
   const val KEY_DEVICE_ID = "device_id"
   const val KEY_UPLOAD_INTERVAL = "upload_interval_s"
+  const val KEY_LAST_UPLOAD_STATUS = "last_upload_status"
   const val KEY_TRACKING_ENABLED = "tracking_enabled"
 
   fun get(context: Context): SharedPreferences =
@@ -35,6 +38,11 @@ object Prefs {
   fun supabaseApiKey(context: Context): String =
       get(context).getString(KEY_SUPABASE_APIKEY, "") ?: ""
 
+  fun supabaseUrl2(context: Context): String = get(context).getString(KEY_SUPABASE_URL_2, "") ?: ""
+
+  fun supabaseApiKey2(context: Context): String =
+      get(context).getString(KEY_SUPABASE_APIKEY_2, "") ?: ""
+
   fun deviceId(context: Context): String {
     val p = get(context)
     var id = p.getString(KEY_DEVICE_ID, null)
@@ -47,6 +55,13 @@ object Prefs {
 
   fun uploadIntervalS(context: Context): Long =
       (get(context).getString(KEY_UPLOAD_INTERVAL, "30") ?: "30").toLongOrNull() ?: 30L
+
+  fun lastUploadStatus(context: Context): String =
+      get(context).getString(KEY_LAST_UPLOAD_STATUS, "") ?: ""
+
+  fun setLastUploadStatus(context: Context, status: String) {
+    get(context).edit().putString(KEY_LAST_UPLOAD_STATUS, status).apply()
+  }
 
   fun trackingEnabled(context: Context): Boolean =
       get(context).getBoolean(KEY_TRACKING_ENABLED, false)

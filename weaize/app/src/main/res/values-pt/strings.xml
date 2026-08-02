@@ -24,6 +24,11 @@
     <string name="east">Longitude leste</string>
     <string name="west">Longitude oeste</string>
 
+    <string name="nav_address_hint">Digite um endereço…</string>
+    <string name="nav_go">Ir</string>
+    <string name="nav_cancel_trip">Cancelar viagem</string>
+    <string name="nav_searching">Procurando endereço…</string>
+    <string name="nav_address_not_found">Endereço não encontrado</string>
     <string name="nav_calculating">Calculando rota…</string>
     <string name="nav_route_failed">Não foi possível obter uma rota; usando orientação de voz em linha reta</string>
     <string name="nav_cleared">Destino removido</string>
@@ -46,5 +51,9 @@
     <string name="pref_private_key">Chave privada (criptografa os envios)</string>
     <string name="pref_supabase_url">URL do Supabase</string>
     <string name="pref_supabase_apikey">Chave de API do Supabase (pública/anon)</string>
+    <string name="pref_supabase_url_2">URL do Supabase de backup</string>
+    <string name="pref_supabase_apikey_2">Chave de API do Supabase de backup (pública/anon)</string>
+    <string name="upload_status_ok">Último envio: OK</string>
+    <string name="upload_status_error">Falha no envio: %1$s</string>
     <string name="pref_upload_interval">Intervalo de envio (segundos)</string>
 </resources>

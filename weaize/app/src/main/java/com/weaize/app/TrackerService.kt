@@ -34,6 +34,19 @@ class TrackerService : Service(), LocationListener, SensorEventListener {
 
   companion object {
     const val CHANNEL_ID = "weaize_tracker"
+    private const val RESTART_REQUEST_CODE = 1
+
+    /** Cancels any pending service-restart alarm scheduled by [onTaskRemoved]. */
+    fun cancelRestartAlarm(context: Context) {
+      val restart =
+          PendingIntent.getForegroundService(
+              context,
+              RESTART_REQUEST_CODE,
+              Intent(context, TrackerService::class.java),
+              PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT)
+      val alarm = context.getSystemService(Context.ALARM_SERVICE) as android.app.AlarmManager
+      alarm.cancel(restart)
+    }
     const val NOTIFICATION_ID = 1
     const val ACTION_LOCATION_UPDATE = "com.weaize.app.LOCATION_UPDATE"
     const val EXTRA_LAT = "lat"
@@ -68,8 +81,24 @@ class TrackerService : Service(), LocationListener, SensorEventListener {
   }
 
   override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
+    try {
+      startForeground(NOTIFICATION_ID, buildNotification())
+    } catch (e: SecurityException) {
+      stopSelf()
+      return START_NOT_STICKY
+    } catch (e: IllegalStateException) {
+      // ForegroundServiceStartNotAllowedException and friends: the system refused a
+      // foreground start (e.g. a stale restart from the background); bail out quietly.
+      stopSelf()
+      return START_NOT_STICKY
+    }
+    // A sticky/alarm restart arriving after the user pressed Stop must not revive tracking.
+    if (intent == null && !Prefs.trackingEnabled(this)) {
+      stopForeground(STOP_FOREGROUND_REMOVE)
+      stopSelf()
+      return START_NOT_STICKY
+    }
     Prefs.setTrackingEnabled(this, true)
-    startForeground(NOTIFICATION_ID, buildNotification())
     startLocationUpdates()
     gyro?.let { sensorManager.registerListener(this, it, SensorManager.SENSOR_DELAY_NORMAL) }
     return START_STICKY
@@ -81,7 +110,7 @@ class TrackerService : Service(), LocationListener, SensorEventListener {
       val restart =
           PendingIntent.getForegroundService(
               this,
-              1,
+              RESTART_REQUEST_CODE,
               Intent(this, TrackerService::class.java),
               PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT)
       val alarm = getSystemService(Context.ALARM_SERVICE) as android.app.AlarmManager

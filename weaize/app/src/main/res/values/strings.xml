@@ -24,6 +24,11 @@
     <string name="east">East longitude</string>
     <string name="west">West longitude</string>
 
+    <string name="nav_address_hint">Type an address…</string>
+    <string name="nav_go">Go</string>
+    <string name="nav_cancel_trip">Cancel trip</string>
+    <string name="nav_searching">Searching address…</string>
+    <string name="nav_address_not_found">Address not found</string>
     <string name="nav_calculating">Calculating route…</string>
     <string name="nav_route_failed">Could not fetch a route; using straight-line voice guidance</string>
     <string name="nav_cleared">Destination cleared</string>
@@ -46,6 +51,10 @@
     <string name="pref_private_key">Private key (encrypts uploads)</string>
     <string name="pref_supabase_url">Supabase URL</string>
     <string name="pref_supabase_apikey">Supabase API key (public/anon)</string>
+    <string name="pref_supabase_url_2">Backup Supabase URL</string>
+    <string name="pref_supabase_apikey_2">Backup Supabase API key (public/anon)</string>
+    <string name="upload_status_ok">Last upload: OK</string>
+    <string name="upload_status_error">Upload failed: %1$s</string>
     <string name="pref_upload_interval">Upload interval (seconds)</string>
 
     <string-array name="language_entries">
