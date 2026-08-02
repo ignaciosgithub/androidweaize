@@ -24,6 +24,11 @@
     <string name="east">East longitude</string>
     <string name="west">West longitude</string>
 
+    <string name="nav_address_hint">Type an address…</string>
+    <string name="nav_go">Go</string>
+    <string name="nav_cancel_trip">Cancel trip</string>
+    <string name="nav_searching">Searching address…</string>
+    <string name="nav_address_not_found">Address not found</string>
     <string name="nav_calculating">Calculating route…</string>
     <string name="nav_route_failed">Could not fetch a route; using straight-line voice guidance</string>
     <string name="nav_cleared">Destination cleared</string>

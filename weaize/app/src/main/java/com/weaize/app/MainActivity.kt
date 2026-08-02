@@ -8,7 +8,9 @@ import android.content.IntentFilter
 import android.content.pm.PackageManager
 import android.os.Build
 import android.os.Bundle
+import android.view.inputmethod.EditorInfo
 import android.widget.Button
+import android.widget.EditText
 import android.widget.TextView
 import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
@@ -42,6 +44,7 @@ class MainActivity : AppCompatActivity() {
   private var destMarker: Marker? = null
   private var routeLine: Polyline? = null
   private var lastFix: Location? = null
+  private lateinit var cancelTripButton: Button
 
   private val permissionLauncher =
       registerForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) { grants ->
@@ -109,6 +112,20 @@ class MainActivity : AppCompatActivity() {
 
     voice = VoiceAlerts(this)
     navigator = Navigator(this, voice)
+
+    val addressInput = findViewById<EditText>(R.id.address_input)
+    findViewById<Button>(R.id.btn_go).setOnClickListener { searchAddress(addressInput) }
+    addressInput.setOnEditorActionListener { _, actionId, _ ->
+      if (actionId == EditorInfo.IME_ACTION_GO) {
+        searchAddress(addressInput)
+        true
+      } else false
+    }
+    cancelTripButton = findViewById(R.id.btn_cancel_trip)
+    cancelTripButton.setOnClickListener {
+      clearRoute()
+      Toast.makeText(this, R.string.nav_cleared, Toast.LENGTH_SHORT).show()
+    }
     map.overlays.add(
         MapEventsOverlay(
             object : MapEventsReceiver {
@@ -128,6 +145,26 @@ class MainActivity : AppCompatActivity() {
       Toast.makeText(this, R.string.nav_cleared, Toast.LENGTH_SHORT).show()
       return
     }
+    navigateTo(p)
+  }
+
+  private fun searchAddress(input: EditText) {
+    val query = input.text.toString().trim()
+    if (query.isEmpty()) return
+    Toast.makeText(this, R.string.nav_searching, Toast.LENGTH_SHORT).show()
+    lifecycleScope.launch {
+      val dest = withContext(Dispatchers.IO) { Routing.geocode(query) }
+      if (dest == null) {
+        Toast.makeText(this@MainActivity, R.string.nav_address_not_found, Toast.LENGTH_LONG).show()
+      } else {
+        input.text.clear()
+        map.controller.animateTo(dest)
+        navigateTo(dest)
+      }
+    }
+  }
+
+  private fun navigateTo(p: GeoPoint) {
     val from =
         lastFix?.let { GeoPoint(it.latitude, it.longitude) }
             ?: GeoPoint(map.mapCenter.latitude, map.mapCenter.longitude)
@@ -160,6 +197,7 @@ class MainActivity : AppCompatActivity() {
           }
     }
     map.invalidate()
+    cancelTripButton.visibility = android.view.View.VISIBLE
   }
 
   private fun clearRouteOverlays() {
@@ -168,6 +206,7 @@ class MainActivity : AppCompatActivity() {
     destMarker = null
     routeLine = null
     map.invalidate()
+    cancelTripButton.visibility = android.view.View.GONE
   }
 
   private fun clearRoute() {
@@ -196,6 +235,7 @@ class MainActivity : AppCompatActivity() {
   private fun toggleTracking() {
     if (tracking) {
       Prefs.setTrackingEnabled(this, false)
+      TrackerService.cancelRestartAlarm(this)
       stopService(Intent(this, TrackerService::class.java))
       tracking = false
       findViewById<Button>(R.id.btn_start).setText(R.string.start_tracking)
