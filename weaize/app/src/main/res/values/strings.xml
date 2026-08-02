@@ -33,6 +33,7 @@
     <string name="nav_route_failed">Could not fetch a route; using straight-line voice guidance</string>
     <string name="nav_cleared">Destination cleared</string>
     <string name="nav_route_started">Route started. Distance %1$d kilometers.</string>
+    <string name="nav_route_started_m">Route started. Distance %1$d meters.</string>
     <string name="nav_offline_guidance">No route available. Using direction guidance to destination.</string>
     <string name="nav_offline_update">Destination in %1$d meters. %2$s</string>
     <string name="nav_in_meters">In %1$d meters, %2$s</string>
