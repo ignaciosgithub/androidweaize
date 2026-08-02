@@ -45,6 +45,7 @@ class MainActivity : AppCompatActivity() {
   private var routeLine: Polyline? = null
   private var lastFix: Location? = null
   private lateinit var cancelTripButton: Button
+  private var toast: Toast? = null
 
   private val permissionLauncher =
       registerForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) { grants ->
@@ -124,7 +125,7 @@ class MainActivity : AppCompatActivity() {
     cancelTripButton = findViewById(R.id.btn_cancel_trip)
     cancelTripButton.setOnClickListener {
       clearRoute()
-      Toast.makeText(this, R.string.nav_cleared, Toast.LENGTH_SHORT).show()
+      showToast(R.string.nav_cleared, Toast.LENGTH_SHORT)
     }
     map.overlays.add(
         MapEventsOverlay(
@@ -142,20 +143,26 @@ class MainActivity : AppCompatActivity() {
     val current = navigator.destination
     if (current != null && current.distanceToAsDouble(p) < 100.0) {
       clearRoute()
-      Toast.makeText(this, R.string.nav_cleared, Toast.LENGTH_SHORT).show()
+      showToast(R.string.nav_cleared, Toast.LENGTH_SHORT)
       return
     }
     navigateTo(p)
   }
 
+  /** Shows a toast, cancelling any one still visible so replacements aren't dropped. */
+  private fun showToast(textRes: Int, duration: Int) {
+    toast?.cancel()
+    toast = Toast.makeText(this, textRes, duration).also { it.show() }
+  }
+
   private fun searchAddress(input: EditText) {
     val query = input.text.toString().trim()
     if (query.isEmpty()) return
-    Toast.makeText(this, R.string.nav_searching, Toast.LENGTH_SHORT).show()
+    showToast(R.string.nav_searching, Toast.LENGTH_SHORT)
     lifecycleScope.launch {
       val dest = withContext(Dispatchers.IO) { Routing.geocode(query) }
       if (dest == null) {
-        Toast.makeText(this@MainActivity, R.string.nav_address_not_found, Toast.LENGTH_LONG).show()
+        showToast(R.string.nav_address_not_found, Toast.LENGTH_LONG)
       } else {
         input.text.clear()
         map.controller.animateTo(dest)
@@ -167,12 +174,12 @@ class MainActivity : AppCompatActivity() {
   private fun navigateTo(p: GeoPoint) {
     val from =
         lastFix?.let { GeoPoint(it.latitude, it.longitude) }
-            ?: GeoPoint(map.mapCenter.latitude, map.mapCenter.longitude)
-    Toast.makeText(this, R.string.nav_calculating, Toast.LENGTH_SHORT).show()
+            ?: lastKnownGeoPoint() ?: GeoPoint(map.mapCenter.latitude, map.mapCenter.longitude)
+    showToast(R.string.nav_calculating, Toast.LENGTH_SHORT)
     lifecycleScope.launch {
       val route = withContext(Dispatchers.IO) { Routing.route(from, p) }
       if (route == null) {
-        Toast.makeText(this@MainActivity, R.string.nav_route_failed, Toast.LENGTH_LONG).show()
+        showToast(R.string.nav_route_failed, Toast.LENGTH_LONG)
       }
       navigator.start(p, route)
       drawRoute(p, route)
@@ -184,6 +191,7 @@ class MainActivity : AppCompatActivity() {
     destMarker =
         Marker(map).also {
           it.position = dest
+          it.icon = ContextCompat.getDrawable(this, R.drawable.ic_dest_marker)
           it.setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_BOTTOM)
           map.overlays.add(it)
         }
@@ -214,20 +222,22 @@ class MainActivity : AppCompatActivity() {
     clearRouteOverlays()
   }
 
+  private fun lastKnownGeoPoint(): GeoPoint? {
+    if (ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) !=
+        PackageManager.PERMISSION_GRANTED)
+        return null
+    val lm = getSystemService(LOCATION_SERVICE) as android.location.LocationManager
+    val last =
+        lm.getProviders(true).mapNotNull { lm.getLastKnownLocation(it) }.maxByOrNull { it.time }
+    return last?.let { GeoPoint(it.latitude, it.longitude) }
+  }
+
   private fun centerOnLastKnownLocation() {
-    var centered = false
-    if (ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) ==
-        PackageManager.PERMISSION_GRANTED) {
-      val lm = getSystemService(LOCATION_SERVICE) as android.location.LocationManager
-      val last =
-          lm.getProviders(true).mapNotNull { lm.getLastKnownLocation(it) }.maxByOrNull { it.time }
-      if (last != null) {
-        map.controller.setZoom(15.0)
-        map.controller.setCenter(GeoPoint(last.latitude, last.longitude))
-        centered = true
-      }
-    }
-    if (!centered) {
+    val last = lastKnownGeoPoint()
+    if (last != null) {
+      map.controller.setZoom(15.0)
+      map.controller.setCenter(last)
+    } else {
       map.controller.setZoom(3.0)
     }
   }
@@ -302,6 +312,7 @@ class MainActivity : AppCompatActivity() {
     if (marker == null) {
       marker =
           Marker(map).also {
+            it.icon = ContextCompat.getDrawable(this, R.drawable.ic_self_marker)
             it.setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_CENTER)
             map.overlays.add(it)
           }

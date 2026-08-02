@@ -38,9 +38,12 @@ class Navigator(private val context: Context, private val voice: VoiceAlerts) {
     announcedStep = -1
     lastOfflineUpdateMs = 0L
     if (fetchedRoute != null) {
-      voice.speak(
-          context.getString(
-              R.string.nav_route_started, (fetchedRoute.distanceM / 1000).toInt()))
+      val text =
+          if (fetchedRoute.distanceM >= 1000)
+              context.getString(
+                  R.string.nav_route_started, Math.round(fetchedRoute.distanceM / 1000).toInt())
+          else context.getString(R.string.nav_route_started_m, fetchedRoute.distanceM.toInt())
+      voice.speak(text)
     } else {
       voice.speak(context.getString(R.string.nav_offline_guidance))
     }

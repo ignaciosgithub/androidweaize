@@ -33,6 +33,7 @@
     <string name="nav_route_failed">Não foi possível obter uma rota; usando orientação de voz em linha reta</string>
     <string name="nav_cleared">Destino removido</string>
     <string name="nav_route_started">Rota iniciada. Distância %1$d quilômetros.</string>
+    <string name="nav_route_started_m">Rota iniciada. Distância %1$d metros.</string>
     <string name="nav_offline_guidance">Sem rota disponível. Usando orientação de direção até o destino.</string>
     <string name="nav_offline_update">Destino a %1$d metros. %2$s</string>
     <string name="nav_in_meters">Em %1$d metros, %2$s</string>
