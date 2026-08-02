@@ -24,6 +24,11 @@
     <string name="east">Longitud este</string>
     <string name="west">Longitud oeste</string>
 
+    <string name="nav_address_hint">Escribe una dirección…</string>
+    <string name="nav_go">Ir</string>
+    <string name="nav_cancel_trip">Cancelar viaje</string>
+    <string name="nav_searching">Buscando dirección…</string>
+    <string name="nav_address_not_found">Dirección no encontrada</string>
     <string name="nav_calculating">Calculando ruta…</string>
     <string name="nav_route_failed">No se pudo obtener una ruta; se usará guía de voz en línea recta</string>
     <string name="nav_cleared">Destino eliminado</string>

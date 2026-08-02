@@ -34,6 +34,19 @@ class TrackerService : Service(), LocationListener, SensorEventListener {
 
   companion object {
     const val CHANNEL_ID = "weaize_tracker"
+    private const val RESTART_REQUEST_CODE = 1
+
+    /** Cancels any pending service-restart alarm scheduled by [onTaskRemoved]. */
+    fun cancelRestartAlarm(context: Context) {
+      val restart =
+          PendingIntent.getForegroundService(
+              context,
+              RESTART_REQUEST_CODE,
+              Intent(context, TrackerService::class.java),
+              PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT)
+      val alarm = context.getSystemService(Context.ALARM_SERVICE) as android.app.AlarmManager
+      alarm.cancel(restart)
+    }
     const val NOTIFICATION_ID = 1
     const val ACTION_LOCATION_UPDATE = "com.weaize.app.LOCATION_UPDATE"
     const val EXTRA_LAT = "lat"
@@ -68,10 +81,45 @@ class TrackerService : Service(), LocationListener, SensorEventListener {
   }
 
   override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
-    startForeground(NOTIFICATION_ID, buildNotification())
+    try {
+      startForeground(NOTIFICATION_ID, buildNotification())
+    } catch (e: SecurityException) {
+      stopSelf()
+      return START_NOT_STICKY
+    } catch (e: IllegalStateException) {
+      // ForegroundServiceStartNotAllowedException and friends: the system refused a
+      // foreground start (e.g. a stale restart from the background); bail out quietly.
+      stopSelf()
+      return START_NOT_STICKY
+    }
+    // A sticky/alarm restart arriving after the user pressed Stop must not revive tracking.
+    if (intent == null && !Prefs.trackingEnabled(this)) {
+      stopForeground(STOP_FOREGROUND_REMOVE)
+      stopSelf()
+      return START_NOT_STICKY
+    }
+    Prefs.setTrackingEnabled(this, true)
     startLocationUpdates()
     gyro?.let { sensorManager.registerListener(this, it, SensorManager.SENSOR_DELAY_NORMAL) }
     return START_STICKY
+  }
+
+  override fun onTaskRemoved(rootIntent: Intent?) {
+    // Keep tracking when the app is swiped away: schedule the service to restart.
+    if (Prefs.trackingEnabled(this)) {
+      val restart =
+          PendingIntent.getForegroundService(
+              this,
+              RESTART_REQUEST_CODE,
+              Intent(this, TrackerService::class.java),
+              PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT)
+      val alarm = getSystemService(Context.ALARM_SERVICE) as android.app.AlarmManager
+      alarm.set(
+          android.app.AlarmManager.ELAPSED_REALTIME_WAKEUP,
+          android.os.SystemClock.elapsedRealtime() + 2000,
+          restart)
+    }
+    super.onTaskRemoved(rootIntent)
   }
 
   private fun startLocationUpdates() {

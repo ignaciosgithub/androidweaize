@@ -1,8 +1,11 @@
 package com.weaize.app
 
 import java.io.IOException
+import java.net.URLEncoder
 import okhttp3.OkHttpClient
 import okhttp3.Request
+import org.json.JSONArray
+import org.json.JSONException
 import org.json.JSONObject
 import org.osmdroid.util.GeoPoint
 
@@ -29,6 +32,29 @@ object Routing {
               else -> R.string.nav_continue
             }
       }
+
+  /** Geocodes a free-form address via Nominatim. Blocking; returns null when not found. */
+  fun geocode(query: String): GeoPoint? {
+    val url =
+        "https://nominatim.openstreetmap.org/search?format=json&limit=1&q=" +
+            URLEncoder.encode(query, "UTF-8")
+    val request = Request.Builder().url(url).header("User-Agent", "weaize").build()
+    return try {
+      http.newCall(request).execute().use { resp ->
+        if (!resp.isSuccessful) return null
+        val results = JSONArray(resp.body?.string() ?: return null)
+        if (results.length() == 0) return null
+        val first = results.getJSONObject(0)
+        GeoPoint(first.getString("lat").toDouble(), first.getString("lon").toDouble())
+      }
+    } catch (e: IOException) {
+      null
+    } catch (e: JSONException) {
+      null
+    } catch (e: NumberFormatException) {
+      null
+    }
+  }
 
   /** Blocking; call from a background dispatcher. Returns null on failure. */
   fun route(from: GeoPoint, to: GeoPoint): Route? {
@@ -72,7 +98,7 @@ object Routing {
       }
     } catch (e: IOException) {
       null
-    } catch (e: org.json.JSONException) {
+    } catch (e: JSONException) {
       null
     }
   }
