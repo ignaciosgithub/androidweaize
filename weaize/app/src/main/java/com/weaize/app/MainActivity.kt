@@ -167,7 +167,7 @@ class MainActivity : AppCompatActivity() {
   private fun navigateTo(p: GeoPoint) {
     val from =
         lastFix?.let { GeoPoint(it.latitude, it.longitude) }
-            ?: GeoPoint(map.mapCenter.latitude, map.mapCenter.longitude)
+            ?: lastKnownGeoPoint() ?: GeoPoint(map.mapCenter.latitude, map.mapCenter.longitude)
     Toast.makeText(this, R.string.nav_calculating, Toast.LENGTH_SHORT).show()
     lifecycleScope.launch {
       val route = withContext(Dispatchers.IO) { Routing.route(from, p) }
@@ -184,6 +184,7 @@ class MainActivity : AppCompatActivity() {
     destMarker =
         Marker(map).also {
           it.position = dest
+          it.icon = ContextCompat.getDrawable(this, R.drawable.ic_dest_marker)
           it.setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_BOTTOM)
           map.overlays.add(it)
         }
@@ -214,20 +215,22 @@ class MainActivity : AppCompatActivity() {
     clearRouteOverlays()
   }
 
+  private fun lastKnownGeoPoint(): GeoPoint? {
+    if (ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) !=
+        PackageManager.PERMISSION_GRANTED)
+        return null
+    val lm = getSystemService(LOCATION_SERVICE) as android.location.LocationManager
+    val last =
+        lm.getProviders(true).mapNotNull { lm.getLastKnownLocation(it) }.maxByOrNull { it.time }
+    return last?.let { GeoPoint(it.latitude, it.longitude) }
+  }
+
   private fun centerOnLastKnownLocation() {
-    var centered = false
-    if (ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) ==
-        PackageManager.PERMISSION_GRANTED) {
-      val lm = getSystemService(LOCATION_SERVICE) as android.location.LocationManager
-      val last =
-          lm.getProviders(true).mapNotNull { lm.getLastKnownLocation(it) }.maxByOrNull { it.time }
-      if (last != null) {
-        map.controller.setZoom(15.0)
-        map.controller.setCenter(GeoPoint(last.latitude, last.longitude))
-        centered = true
-      }
-    }
-    if (!centered) {
+    val last = lastKnownGeoPoint()
+    if (last != null) {
+      map.controller.setZoom(15.0)
+      map.controller.setCenter(last)
+    } else {
       map.controller.setZoom(3.0)
     }
   }
@@ -302,6 +305,7 @@ class MainActivity : AppCompatActivity() {
     if (marker == null) {
       marker =
           Marker(map).also {
+            it.icon = ContextCompat.getDrawable(this, R.drawable.ic_self_marker)
             it.setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_CENTER)
             map.overlays.add(it)
           }
